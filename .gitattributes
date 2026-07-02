@@ -1,0 +1,20 @@
+# Normalización de fin de línea (evita problemas LF/CRLF en Windows).
+# Texto: LF en el repo; scripts de Windows con CRLF; binarios sin tocar.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.glb binary
+*.gltf text eol=lf
+*.blend binary
+*.mp3 binary
+*.wav binary
+*.ogg binary
+*.mp4 binary

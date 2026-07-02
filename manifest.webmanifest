@@ -1,0 +1,29 @@
+{
+  "name": "DinoColor — Pulsa rápido, gana el reto",
+  "short_name": "DinoColor",
+  "description": "Juego 3D de reflejos con temática jurásica: pulsa rápido las pelotas que se iluminan antes de que se acabe el tiempo.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#0c1f17",
+  "theme_color": "#0c1f17",
+  "categories": ["games", "kids"],
+  "icons": [
+    {
+      "src": "./assets/images/ui/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/images/ui/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ]
+}

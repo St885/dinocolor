@@ -1,0 +1,14 @@
+{
+  "appId": "com.st885.dinocolor",
+  "appName": "DinoColor",
+  "webDir": "dist",
+  "backgroundColor": "#0c1f17",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0c1f17",
+    "captureInput": true
+  }
+}

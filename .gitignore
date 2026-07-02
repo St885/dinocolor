@@ -1,0 +1,64 @@
+# Dependencias (se regeneran con npm install)
+node_modules/
+
+# Build de Vite (se regenera con npm run build)
+dist/
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Temporales
+*.tmp
+
+# Variables de entorno
+.env
+.env.*
+.env.local
+
+# Cachés de build y herramientas (se regeneran)
+.vite/
+.cache/
+
+# Cobertura de tests
+coverage/
+
+# Scripts temporales de captura/diagnóstico (no versionar)
+_*.mjs
+
+# --- Modelos 3D: no duplicar binarios pesados ni versionar backups locales ---
+# El juego sirve SOLO desde public/. Las copias en assets/ son archivo-fuente y NO
+# se versionan (evita duplicar ~66 MB de GLB). La fuente .blend editable sí se versiona.
+/assets/models/**/*.glb
+# Autoguardados y snapshots locales de Blender (git ya es el historial de la fuente).
+*.blend1
+**/backups/
+*_backup.blend
+
+# --- Android / Capacitor ---
+# El proyecto Android nativo se genera/regenera con `npm run cap:add` + `npm run cap:sync`.
+# No se versiona: se mantiene el repo web limpio y se evita colar secretos nativos
+# (google-services.json, keystore.properties, local.properties, firma, etc.).
+android/app/build/
+android/build/
+android/.gradle/
+android/captures/
+android/local.properties
+android/app/release/
+android/app/debug/
+android/.idea/
+google-services.json
+GoogleService-Info.plist
+
+# --- Firma / secretos (NUNCA al repo) ---
+*.keystore
+*.jks
+*.p12
+*.pem
+keystore.properties
+key.properties
+secrets/
+playstore/private/

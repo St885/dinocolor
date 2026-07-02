@@ -1,0 +1,31 @@
+{
+  "name": "dinocolor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DinoColor — juego 3D mobile-first de reflejos: pulsa rápido las pelotas que se iluminan. React + Vite + Three.js (R3F), temática jurásica.",
+  "author": "Stefano",
+  "license": "UNLICENSED",
+  "keywords": ["game", "3d", "threejs", "react-three-fiber", "react", "vite", "reflex", "dinosaur", "mobile", "capacitor"],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cap:add": "npx cap add android",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@react-three/fiber": "^8.17.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@vitejs/plugin-react": "^4.3.2",
+    "vite": "^5.4.8"
+  }
+}

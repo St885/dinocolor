@@ -1,0 +1,134 @@
+/* =============================================================================
+   mobile.css — marco mobile-first, atmósfera de fondo y transiciones de escena
+   - Móvil: pantalla completa, vertical.
+   - Escritorio: "marco de teléfono" centrado.
+   ========================================================================== */
+
+.app-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #1d5c41 0%, #0c2c20 55%, #050f0b 100%);
+}
+
+.app-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 480px; /* en escritorio se ve como un teléfono */
+  max-height: 100%;
+  overflow: hidden;
+  isolation: isolate; /* contexto de apilado propio para glows/transiciones */
+  /* Atmósfera base: cielo jurásico nocturno con luz cálida arriba y niebla abajo */
+  background:
+    radial-gradient(130% 60% at 50% 6%, #2a6e4e 0%, rgba(20, 58, 41, 0) 60%),
+    radial-gradient(80% 50% at 85% 0%, rgba(255, 210, 63, 0.16) 0%, rgba(255, 210, 63, 0) 55%),
+    radial-gradient(100% 70% at 50% 110%, #08231a 0%, #06140e 70%),
+    linear-gradient(180deg, #114130 0%, #0a2218 100%);
+  background-color: #0a2218;
+}
+
+/* Capas decorativas de atmósfera (blobs de color suaves) para que no se vea vacío */
+.app-frame::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(36% 26% at 16% 22%, rgba(79, 227, 255, 0.12) 0%, transparent 70%),
+    radial-gradient(40% 30% at 88% 30%, rgba(255, 107, 179, 0.12) 0%, transparent 70%),
+    radial-gradient(50% 34% at 50% 96%, rgba(84, 255, 157, 0.12) 0%, transparent 70%);
+  filter: blur(8px);
+}
+
+/* Viñeta sutil para dar foco al centro */
+.app-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 140px rgba(0, 0, 0, 0.55);
+}
+
+/* En pantallas anchas, dar al marco aspecto de móvil con esquinas y sombra */
+@media (min-width: 540px) and (min-height: 740px) {
+  .app-frame {
+    height: 92vh;
+    max-height: 920px;
+    border-radius: 36px;
+    box-shadow:
+      var(--shadow-lg),
+      0 0 0 7px #061009,
+      0 0 0 9px #1f4a37,
+      0 0 60px rgba(84, 255, 157, 0.12);
+  }
+}
+
+/* Cada escena ocupa todo el marco. El contenido va por encima de la atmósfera. */
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 3.2vh, 26px);
+  padding: calc(22px + var(--safe-top)) 22px calc(22px + var(--safe-bottom));
+  text-align: center;
+}
+
+/* Entrada suave de escenas (fade + leve subida del contenido) */
+.scene--start,
+.scene--menu,
+.scene--result {
+  animation: scene-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.scene--game {
+  animation: scene-fade 0.3s ease both; /* sin transform para no mover el canvas */
+}
+@keyframes scene-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scene-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Tintes atmosféricos por escena (refuerzan la identidad de cada pantalla) */
+.scene--won::before,
+.scene--lost::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.scene--won::before {
+  background: radial-gradient(90% 60% at 50% 0%, rgba(84, 255, 157, 0.18), transparent 60%);
+}
+.scene--lost::before {
+  background: radial-gradient(90% 60% at 50% 0%, rgba(255, 138, 61, 0.16), transparent 60%);
+}
+
+.scene-actions {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Las escenas con mucho contenido (menú) permiten scroll interno suave */
+.scene--menu {
+  justify-content: flex-start;
+  gap: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
