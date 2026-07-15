@@ -3,6 +3,9 @@
  * -----------------------------------------------------------------------------
  * Pantalla de juego. Monta el canvas 3D (fondo jungla + tablero), una viñeta de
  * profundidad y superpone el HUD. Toda la lógica vive en useGameLoop.
+ *
+ * El botón de pausa PAUSA de verdad (congela cronómetro y luces) y abre un overlay
+ * con Reanudar / Reiniciar / Salir. Antes salía directo al menú perdiendo la partida.
  * -----------------------------------------------------------------------------
  */
 
@@ -10,10 +13,11 @@ import { Canvas } from '@react-three/fiber'
 import Background3D from '../components/game/Background3D.jsx'
 import Board3D from '../components/game/Board3D.jsx'
 import GameHUD from '../components/game/GameHUD.jsx'
-import MiniDinoReaction from '../components/game/MiniDinoReaction.jsx'
+import MiniDinoWalker from '../components/game/MiniDinoWalker.jsx'
+import PauseOverlay from '../components/game/PauseOverlay.jsx'
 import useGameLoop from '../hooks/useGameLoop.js'
 
-export default function GameScene({ level, bestScore = 0, onFinish, onExit }) {
+export default function GameScene({ level, bestScore = 0, onFinish, onRestart, onExit }) {
   const game = useGameLoop({ level, onFinish })
 
   return (
@@ -23,7 +27,7 @@ export default function GameScene({ level, bestScore = 0, onFinish, onExit }) {
         flat /* NoToneMapping: evita que el verde brillante se desature a blanco */
         dpr={[1, 2]}
         camera={{ position: [0, 0, 9], fov: 50 }}
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       >
         <color attach="background" args={['#071711']} />
         <Background3D />
@@ -38,13 +42,12 @@ export default function GameScene({ level, bestScore = 0, onFinish, onExit }) {
       {/* Viñeta de profundidad (foco al tablero, look premium) */}
       <div className="game-vignette" />
 
-      {/* Mini mascota de apoyo (arriba-izquierda, zona segura): reacciona a los
-          aciertos/fallos sin tapar tablero, HUD, timer, meta/barra ni cofre. */}
-      <MiniDinoReaction lastEvent={game.lastEvent} position="top-left" size={78} />
+      {/* Acompañante 3D: T-Rexo en su tarima, arriba-izquierda. Board3D reserva esa
+          banda en píxeles, así que nunca se solapa con el tablero. */}
+      <MiniDinoWalker lastEvent={game.lastEvent} size={88} />
 
       <GameHUD
         levelId={level.id}
-        levelName={level.name}
         timeLeft={game.timeLeft}
         timeProgress={game.timeProgress}
         score={game.score}
@@ -55,8 +58,21 @@ export default function GameScene({ level, bestScore = 0, onFinish, onExit }) {
         misses={game.misses}
         bestScore={bestScore}
         lastEvent={game.lastEvent}
-        onExit={onExit}
+        onPause={game.pause}
       />
+
+      {game.paused && (
+        <PauseOverlay
+          levelId={level.id}
+          levelName={level.name}
+          score={game.score}
+          targetScore={level.targetScore}
+          timeLeft={game.timeLeft}
+          onResume={game.resume}
+          onRestart={onRestart}
+          onMenu={onExit}
+        />
+      )}
     </div>
   )
 }

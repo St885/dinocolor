@@ -11,8 +11,15 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Favicon + icono de app. Ambos viven en public/, así Vite los copia tal cual y
+         las rutas relativas siguen funcionando en GitHub Pages (subcarpeta) y en
+         Capacitor (file://). Antes: no había favicon (404 en consola en cada carga) y
+         el icono del manifest apuntaba a un archivo que la build ni siquiera generaba. -->
+    <link rel="icon" type="image/svg+xml" href="./assets/images/ui/icon.svg" />
+    <link rel="apple-touch-icon" href="./assets/images/ui/icon.svg" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <title>DinoColor</title>
+    <title>DinoColor — Pulsa rápido, gana el reto</title>
   </head>
   <body>
     <div id="root"></div>

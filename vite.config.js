@@ -10,6 +10,21 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Three.js es ~80 % del bundle y no cambia casi nunca; React tampoco. Al
+        // separarlos del código del juego, tocar un nivel o el HUD invalida un chunk
+        // pequeño, y quien vuelve al juego reutiliza de caché el trozo grande en vez
+        // de volver a descargar 1 MB entero.
+        manualChunks: {
+          three: ['three'],
+          react: ['react', 'react-dom'],
+        },
+      },
+    },
+    // El chunk de three es grande por naturaleza; el aviso genérico de Vite ya no
+    // aporta información útil aquí.
+    chunkSizeWarningLimit: 900,
   },
   server: {
     host: true,

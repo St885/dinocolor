@@ -6,6 +6,7 @@
  *   - ilumina pelotas nuevas y hace expirar (fallar) las que no se pulsan a tiempo
  *   - aplica la puntuación (aciertos, combos, penalizaciones) usando scoringSystem
  *   - detecta victoria (puntuación objetivo) y derrota (tiempo agotado)
+ *   - soporta PAUSA real (congela simulación y cronómetro)
  *   - reproduce los sonidos correspondientes
  *
  * La simulación rápida vive en refs (no provoca renders); el estado para la UI se
@@ -32,28 +33,39 @@ const now = () =>
     ? performance.now()
     : Date.now()
 
+/**
+ * Contador monótono para las `key` de los eventos de feedback.
+ * Antes se usaba el timestamp (y en los fallos `timestamp + puntuación`), lo que
+ * podía repetir la misma key en dos eventos distintos: la animación del popup no se
+ * reiniciaba y el jugador se perdía un "+100" o un "¡FALLO!".
+ */
+let eventSeq = 0
+const nextEventKey = () => ++eventSeq
+
+const freshSim = () => ({
+  lights: new Map(), // cellId -> { activatedAt, expireAt }
+  score: 0,
+  combo: 0,
+  bestCombo: 0,
+  hits: 0,
+  misses: 0,
+  finished: false,
+})
+
 export function useGameLoop({ level, onFinish }) {
   // Memoizado por forma: mantiene una identidad estable del layout entre renders, así
-  // Board3D no reconstruye su geometría (THREE.Shape) en cada tick de puntuación.
+  // Board3D no reconstruye su geometría (THREE.Shape) al cambiar la puntuación.
   const layout = useMemo(() => getLayout(level.layout), [level.layout])
 
   // --- Estado mutable de la simulación (no provoca renders) ---
-  const sim = useRef({
-    lights: new Map(), // cellId -> { activatedAt, expireAt }
-    score: 0,
-    combo: 0,
-    bestCombo: 0,
-    hits: 0,
-    misses: 0,
-    finished: false,
-  })
+  const sim = useRef(freshSim())
 
   // --- Estado espejo para la UI ---
   const [status, setStatus] = useState('playing') // 'playing' | 'won' | 'lost'
+  const [paused, setPaused] = useState(false)
   const [activeIds, setActiveIds] = useState(() => new Set())
   const [score, setScore] = useState(0)
   const [combo, setCombo] = useState(0)
-  const [bestCombo, setBestCombo] = useState(0)
   const [hits, setHits] = useState(0)
   const [misses, setMisses] = useState(0)
   const [lastEvent, setLastEvent] = useState(null) // feedback visual puntual
@@ -69,7 +81,6 @@ export function useGameLoop({ level, onFinish }) {
     setActiveIds(new Set(s.lights.keys()))
     setScore(s.score)
     setCombo(s.combo)
-    setBestCombo(s.bestCombo)
     setHits(s.hits)
     setMisses(s.misses)
   }, [])
@@ -79,6 +90,10 @@ export function useGameLoop({ level, onFinish }) {
       const s = sim.current
       if (s.finished) return
       s.finished = true
+      // Apagar el tablero: si no, las pelotas se quedaban encendidas durante la
+      // transición a la pantalla de resultado (y seguían pareciendo pulsables).
+      s.lights.clear()
+      setActiveIds(new Set())
       setStatus(outcome)
       onFinishRef.current &&
         onFinishRef.current({
@@ -96,25 +111,21 @@ export function useGameLoop({ level, onFinish }) {
 
   // --- Reinicio al (re)entrar a un nivel ---
   useEffect(() => {
-    sim.current = {
-      lights: new Map(),
-      score: 0,
-      combo: 0,
-      bestCombo: 0,
-      hits: 0,
-      misses: 0,
-      finished: false,
-    }
+    sim.current = freshSim()
     setStatus('playing')
+    setPaused(false)
     setLastEvent(null)
     sync()
     // Reaccionamos al id del nivel: cada nivel es una partida nueva.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level.id])
 
+  // "Vivo" = jugando y sin pausar. Congela simulación y cronómetro a la vez.
+  const live = status === 'playing' && !paused
+
   // --- Bucle de simulación de luces ---
   useEffect(() => {
-    if (status !== 'playing') return
+    if (!live) return undefined
 
     const allCellIds = layout.cells.map((c) => c.id)
 
@@ -123,6 +134,7 @@ export function useGameLoop({ level, onFinish }) {
       if (s.finished) return
       const t = now()
       let changed = false
+      let expired = 0
 
       // 1) Expirar pelotas no pulsadas a tiempo -> fallo
       for (const [cellId, light] of s.lights) {
@@ -131,21 +143,23 @@ export function useGameLoop({ level, onFinish }) {
           s.score = Math.max(0, s.score - missPenalty())
           s.combo = 0
           s.misses += 1
+          expired += 1
           changed = true
-          Sounds.miss()
-          setLastEvent({ type: 'miss', key: t + Math.round(s.score) })
         }
+      }
+      if (expired > 0) {
+        // Un solo sonido y un solo popup aunque expiren varias a la vez (antes se
+        // solapaban N zumbidos y solo sobrevivía el último evento del bucle).
+        Sounds.miss()
+        setLastEvent({ type: 'miss', count: expired, key: nextEventKey() })
       }
 
       // 2) Rellenar hasta activeBalls con celdas libres
       const target = Math.min(level.activeBalls, allCellIds.length)
-      let guard = 0
-      while (s.lights.size < target && guard < allCellIds.length * 2) {
-        guard += 1
+      while (s.lights.size < target) {
         const free = allCellIds.filter((id) => !s.lights.has(id))
         if (free.length === 0) break
-        const cellId = pick(free)
-        s.lights.set(cellId, {
+        s.lights.set(pick(free), {
           activatedAt: t,
           expireAt: t + level.reactionTime * 1000,
         })
@@ -153,9 +167,6 @@ export function useGameLoop({ level, onFinish }) {
       }
 
       if (changed) sync()
-
-      // 3) ¿Victoria?
-      if (s.score >= level.targetScore) finish('won')
     }
 
     // Primer tick inmediato para que el tablero no arranque vacío.
@@ -163,7 +174,7 @@ export function useGameLoop({ level, onFinish }) {
     const intervalId = setInterval(tick, TICK_MS)
     return () => clearInterval(intervalId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, level.id])
+  }, [live, level.id])
 
   // --- Timer de la partida ---
   const handleExpire = useCallback(() => {
@@ -174,7 +185,7 @@ export function useGameLoop({ level, onFinish }) {
 
   const { timeLeft, progress: timeProgress } = useTimer({
     duration: level.totalTime,
-    running: status === 'playing',
+    running: live,
     onExpire: handleExpire,
   })
 
@@ -182,7 +193,7 @@ export function useGameLoop({ level, onFinish }) {
   const onBallTap = useCallback(
     (cellId) => {
       const s = sim.current
-      if (s.finished || status !== 'playing') return
+      if (s.finished || !live) return
       const t = now()
 
       if (s.lights.has(cellId)) {
@@ -206,7 +217,7 @@ export function useGameLoop({ level, onFinish }) {
           combo: s.combo,
           fast,
           multiplier,
-          key: t,
+          key: nextEventKey(),
         })
         sync()
         if (s.score >= level.targetScore) finish('won')
@@ -216,20 +227,25 @@ export function useGameLoop({ level, onFinish }) {
         s.combo = 0
         s.misses += 1
         Sounds.miss()
-        setLastEvent({ type: 'wrong', key: t })
+        setLastEvent({ type: 'wrong', key: nextEventKey() })
         sync()
       }
     },
-    [status, level, finish, sync],
+    [live, level, finish, sync],
   )
+
+  const pause = useCallback(() => setPaused(true), [])
+  const resume = useCallback(() => setPaused(false), [])
 
   return {
     layout,
     status,
+    paused,
+    pause,
+    resume,
     activeIds,
     score,
     combo,
-    bestCombo,
     hits,
     misses,
     lastEvent,

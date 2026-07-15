@@ -57,6 +57,31 @@ npm run build    # producción en dist/
   `three` + R3F, sin drei). El **SVG es el fallback** si el GLB no carga. No cambiar la API del
   componente (`message`, `mood`, `size`, `animation`/`state`).
 
+## ⚠️ Tres cosas que NO hay que deshacer (revisión 2026-07-13)
+
+1. **NO vuelvas a usar los modelos "Oliver" como mascota.** Pesan 22 MB y 44 MB (66 MB para jugar
+   una partida) y `oliver_character.glb` **solo tiene 1 animación**, por lo que la celebración de
+   victoria no existía: ganar y perder se veían idénticos. La mascota es **T-Rexo**
+   (`dino_color_mascot.glb`, 0,9 MB). El registro `oliver` sigue en `DinoMascot.jsx` como skin
+   premium, pero **ninguna escena debe pedirlo** hasta que esté comprimido a < 5 MB (Draco/KTX2).
+   Sus GLB fuente están intactos en `assets/`; la copia servible de `public/` se retiró a propósito
+   (era lo que engordaba `dist/` hasta 69 MB).
+
+2. **De los 8 clips de T-Rexo, SOLO `idle` es seguro.** Los demás rompen la malla (le despegan la
+   placa del vientre, le colapsan la cabeza). Está protegido con la allowlist `SAFE_CLIPS` en
+   `DinoMascot.jsx`. **No la amplíes sin renderizar el clip y mirarlo.** El arreglo de verdad es
+   repintar los pesos de skinning en Blender (`assets/models/characters/dino-mascot/*.blend`).
+   La emoción (saludo, salto de alegría, cabizbajo) se hace con **poses de cuerpo entero**
+   (`POSES` / `MascotRig`), que no pueden romper el esqueleto.
+
+3. **El tablero se encaja en la BANDA LIBRE, no en la pantalla.** `Board3D` reserva las bandas del
+   HUD en píxeles (`TOP_RESERVE_PX`, `BOTTOM_RESERVE_PX`) para que nunca se solape con el HUD ni con
+   la tarima de T-Rexo. Si cambias la altura del HUD o de la tarima en `game.css`, **actualiza esas
+   constantes** o volverán los solapes.
+
+> Detalle completo y demás trampas (cronómetro en segundo plano, `clearedLevel` vs `maxLevel`,
+> `key`s de eventos, `useThree` sin selector…) en [`docs/TECHNICAL_NOTES.md`](docs/TECHNICAL_NOTES.md).
+
 ## Próximos pasos sugeridos
 
 Ver [`docs/ROADMAP.md`](docs/ROADMAP.md). Prioridad: pulido visual, modelo 3D de mascota,

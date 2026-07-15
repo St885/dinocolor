@@ -5,12 +5,13 @@
  *   start  →  menu  →  game  →  result  →  (game | menu)
  *
  * Mantiene el nivel actual y el último resultado, y conecta el progreso guardado
- * (niveles desbloqueados, récord, sonido) con las escenas.
+ * (niveles desbloqueados, superados, récord, sonido) con las escenas.
  * -----------------------------------------------------------------------------
  */
 
 import { useCallback, useState } from 'react'
 import MobileLayout from './components/layout/MobileLayout.jsx'
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import StartScene from './scenes/StartScene.jsx'
 import MenuScene from './scenes/MenuScene.jsx'
 import GameScene from './scenes/GameScene.jsx'
@@ -24,17 +25,26 @@ export default function App() {
   const [currentLevelId, setCurrentLevelId] = useState(getFirstLevel().id)
   const [lastResult, setLastResult] = useState(null)
 
+  // Nonce de partida: cambia en CADA arranque de nivel. Va en la `key` de GameScene
+  // para forzar un montaje limpio incluso al reiniciar el MISMO nivel desde la pausa
+  // (sin él la key no cambiaba y la partida habría continuado con el estado anterior).
+  const [runId, setRunId] = useState(0)
+
   const startLevel = useCallback((levelId) => {
     const level = getLevelById(levelId) || getFirstLevel()
     setCurrentLevelId(level.id)
+    setRunId((n) => n + 1)
     setScene('game')
   }, [])
 
   const handleFinish = useCallback(
     (result) => {
-      // El récord se guarda siempre; al ganar, se desbloquea el siguiente nivel.
+      // El récord se guarda siempre; al ganar se marca el nivel como SUPERADO y se
+      // desbloquea el siguiente (si lo hay: el último nivel no tiene siguiente, por
+      // eso "superado" se registra aparte de "desbloqueado").
       progress.recordScore(result.score)
       if (result.outcome === 'won') {
+        progress.recordCleared(result.levelId)
         const next = getNextLevel(result.levelId)
         if (next) progress.unlockLevel(next.id)
       }
@@ -53,47 +63,51 @@ export default function App() {
   const currentLevel = getLevelById(currentLevelId) || getFirstLevel()
 
   return (
-    <MobileLayout>
-      {scene === 'start' && (
-        <StartScene
-          onStart={() => setScene('menu')}
-          soundEnabled={progress.soundEnabled}
-          onToggleSound={progress.toggleSound}
-        />
-      )}
+    <ErrorBoundary>
+      <MobileLayout>
+        {scene === 'start' && (
+          <StartScene
+            onStart={() => setScene('menu')}
+            soundEnabled={progress.soundEnabled}
+            onToggleSound={progress.toggleSound}
+          />
+        )}
 
-      {scene === 'menu' && (
-        <MenuScene
-          onPlayLevel={startLevel}
-          onBack={() => setScene('start')}
-          maxLevel={progress.maxLevel}
-          bestScore={progress.bestScore}
-          isUnlocked={progress.isUnlocked}
-          soundEnabled={progress.soundEnabled}
-          onToggleSound={progress.toggleSound}
-        />
-      )}
+        {scene === 'menu' && (
+          <MenuScene
+            onPlayLevel={startLevel}
+            onBack={() => setScene('start')}
+            maxLevel={progress.maxLevel}
+            clearedLevel={progress.clearedLevel}
+            bestScore={progress.bestScore}
+            isUnlocked={progress.isUnlocked}
+            soundEnabled={progress.soundEnabled}
+            onToggleSound={progress.toggleSound}
+          />
+        )}
 
-      {scene === 'game' && (
-        // key fuerza un montaje limpio al cambiar/reiniciar de nivel.
-        <GameScene
-          key={`level-${currentLevelId}`}
-          level={currentLevel}
-          bestScore={progress.bestScore}
-          onFinish={handleFinish}
-          onExit={() => setScene('menu')}
-        />
-      )}
+        {scene === 'game' && (
+          <GameScene
+            key={`level-${currentLevelId}-run-${runId}`}
+            level={currentLevel}
+            bestScore={progress.bestScore}
+            onFinish={handleFinish}
+            onRestart={() => startLevel(currentLevelId)}
+            onExit={() => setScene('menu')}
+          />
+        )}
 
-      {scene === 'result' && lastResult && (
-        <ResultScene
-          result={lastResult}
-          hasNextLevel={getNextLevel(lastResult.levelId) !== null}
-          onNext={handleNext}
-          onRetry={() => startLevel(currentLevelId)}
-          onMenu={() => setScene('menu')}
-        />
-      )}
-    </MobileLayout>
+        {scene === 'result' && lastResult && (
+          <ResultScene
+            result={lastResult}
+            hasNextLevel={getNextLevel(lastResult.levelId) !== null}
+            soundEnabled={progress.soundEnabled}
+            onNext={handleNext}
+            onRetry={() => startLevel(currentLevelId)}
+            onMenu={() => setScene('menu')}
+          />
+        )}
+      </MobileLayout>
+    </ErrorBoundary>
   )
 }

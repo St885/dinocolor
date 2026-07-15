@@ -87,17 +87,29 @@ dinocolor/
 
 ## 📦 Estado del MVP
 
-✅ **MVP jugable y pulido.** Pantallas (inicio, menú, juego, resultado) · tablero 3D · timer ·
-iluminación de pelotas · interacción táctil/click · puntuación + combos · victoria/derrota ·
-niveles progresivos · guardado local · sonidos sintetizados · **mascota 3D T-Rexo** (con fallback
-SVG). Tras una **revisión multi-agente y 3 ciclos de pulido** (layout/HUD, fondo, feedback,
-presentación de T-Rexo), `npm run build` queda **verde**.
+✅ **MVP jugable y pulido** (v0.2.0). Pantallas (inicio, menú, juego, **pausa**, resultado) ·
+tablero 3D · timer · iluminación de pelotas · interacción táctil/click · puntuación + combos ·
+victoria/derrota · niveles progresivos · guardado local · sonidos sintetizados · **mascota 3D
+T-Rexo** (con fallback SVG y pantalla de error). `npm run build` **verde**, recorrido completo
+validado en navegador con WebGL: **0 errores de consola**.
 
-> **StartScene** usa ahora el modelo **"Oliver"** (T-Rexo azul de alta calidad, copiado desde
-> TREXoRoll) con carga por prioridad `oliver_character.glb` (~23 MB, principal temporal) →
-> `oliver_master.glb` (~44 MB, fallback de mayor calidad) → `dino_color_mascot.glb` → SVG. El texto
-> sigue siendo "Hola, soy T-Rexo". ⚠️ Ambos son pesados: **próxima mejora, optimizar a < 5 MB**
-> (Draco/KTX2). Ver `docs/TECHNICAL_NOTES.md`.
+**Revisión integral 2026-07-13** (bugs · UX · visual · rendimiento). Lo más gordo:
+
+- 🪶 **La descarga de modelos 3D pasa de 66 MB a 0,9 MB** y `dist/` de **69 MB a 2,0 MB**. Antes se
+  cargaban dos GLB de "Oliver" (22 MB + 44 MB); ahora la mascota es **T-Rexo**
+  (`dino_color_mascot.glb`, 0,9 MB), que además es el modelo oficial del juego.
+- 🏆 **Ganar y perder ya no se ven igual.** El modelo que se cargaba solo tenía 1 animación, así que
+  la celebración de victoria nunca existió. Ahora T-Rexo **salta de alegría** al ganar y se queda
+  **cabizbajo** al perder.
+- ⏱️ **Se acabó el tiempo infinito**: minimizar la app y volver reiniciaba el cronómetro a cero
+  segundos consumidos.
+- ⏸️ **El botón de pausa pausa de verdad** (antes salía al menú y perdías la partida sin aviso).
+- 💯 **El juego se puede completar al 100 %**: superar el último nivel no contaba y el progreso se
+  quedaba clavado en 11/12 para siempre.
+
+⚠️ **Pendiente importante:** de los 8 clips del GLB de T-Rexo **solo `idle` es usable**; los demás
+rompen la malla (pesos de skinning mal pintados). Hay que **repintarlos en Blender**. Mientras
+tanto, la emoción se consigue con poses de cuerpo entero. Ver `docs/TECHNICAL_NOTES.md`.
 
 Ver detalle en [`docs/STATUS.md`](docs/STATUS.md) y plan en [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -105,6 +117,6 @@ Ver detalle en [`docs/STATUS.md`](docs/STATUS.md) y plan en [`docs/ROADMAP.md`](
 
 ## 🔜 Próximas mejoras
 
-Modelo 3D real de la mascota, más formas de tablero, efectos/partículas, tienda y skins,
-logros, eventos diarios, anuncios recompensados y publicación en Android. Detalle en
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+Repintar los pesos de T-Rexo en Blender (desbloquea sus animaciones), comprimir los GLB de Oliver a
+< 5 MB para recuperarlo como skin premium, más formas de tablero, función real del cofre, tienda y
+skins, logros, y publicación en Android. Detalle en [`docs/ROADMAP.md`](docs/ROADMAP.md).

@@ -1,0 +1,84 @@
+/**
+ * MiniDinoWalker.jsx
+ * -----------------------------------------------------------------------------
+ * Acompañante 3D de la pantalla de juego: un mini T-Rexo que vive en su tarima, en
+ * la zona segura de arriba-izquierda (bajo el botón de pausa).
+ *
+ * Comportamiento (bucle de "compañía"):
+ *   - descansa con un balanceo suave, derivando un poco por su tarima,
+ *   - al ACERTAR el jugador, SALTA de alegría un instante y vuelve a lo suyo.
+ *
+ * Por qué ya NO camina ni baila: el GLB de T-Rexo no tiene clip de caminar, y sus clips
+ * expresivos (dance, celebrate...) ROMPEN la malla — le despegan trozos del cuerpo (ver
+ * SAFE_CLIPS en DinoMascot.jsx). Antes se cargaba `oliver_master.glb` (~44 MB) SOLO para
+ * robarle el clip "Walking": un precio absurdo por una figurita de 88 px.
+ *
+ * Lo que sí hace: `idle` (el único clip que se ve bien) + movimiento del cuerpo entero
+ * (deriva y salto). El salto de celebración es una pose rígida, así que se ve fenomenal
+ * y no puede romper nada.
+ *
+ * NUNCA tapa el tablero: Board3D reserva una banda superior en píxeles y encaja el
+ * tablero por DEBAJO de esta tarima (ver TOP_RESERVE_PX en Board3D.jsx).
+ * -----------------------------------------------------------------------------
+ */
+
+import { memo, useEffect, useRef, useState } from 'react'
+import DinoMascot from './DinoMascot.jsx'
+
+const DRIFT_MS = 3400 // cada cuánto cambia de lado de la tarima
+const CHEER_MS = 1100 // celebración al acertar
+
+function MiniDinoWalker({ lastEvent, size = 88 }) {
+  const [side, setSide] = useState(0) // extremo de la tarima hacia el que deriva
+  const [cheer, setCheer] = useState(false)
+  const cheerRef = useRef(null)
+
+  // Mira hacia donde deriva.
+  const facing = side === 1 ? 1 : -1
+
+  // Deriva lenta de un lado a otro de su tarima.
+  useEffect(() => {
+    const id = setInterval(() => setSide((s) => (s === 0 ? 1 : 0)), DRIFT_MS)
+    return () => clearInterval(id)
+  }, [])
+
+  // Celebración al acertar: cambia la POSE (salto), no el clip.
+  useEffect(() => {
+    if (!lastEvent || lastEvent.type !== 'hit') return undefined
+    setCheer(true)
+    clearTimeout(cheerRef.current)
+    cheerRef.current = setTimeout(() => setCheer(false), CHEER_MS)
+    return () => clearTimeout(cheerRef.current)
+  }, [lastEvent])
+
+  // El timeout de celebración se re-crea con cada acierto: hay que limpiarlo también
+  // al DESMONTAR o queda vivo tras salir al menú (timer huérfano).
+  useEffect(() => () => clearTimeout(cheerRef.current), [])
+
+  return (
+    <div className="mini-dino2" aria-hidden="true">
+      <div className="mini-dino2-stage">
+        <span className="mini-dino2-shadow" />
+        <div className={`mini-dino2-track ${cheer ? 'is-cheer' : ''}`} data-side={side}>
+          <div className="mini-dino2-flip" style={{ '--facing': facing }}>
+            <DinoMascot
+              model="trexo"
+              pose={cheer ? 'cheer' : 'idle'}
+              size={size}
+              quality="low"
+              targetHeight={1.02}
+              baseY={-0.52}
+              cameraY={0.52}
+              cameraDistance={2.95}
+              className="mini-dino2-model"
+            />
+          </div>
+        </div>
+        <span className="mini-dino2-label">T-Rexo</span>
+      </div>
+    </div>
+  )
+}
+
+/** memo: GameScene se re-renderiza con cada acierto y cada segundo del cronómetro. */
+export default memo(MiniDinoWalker)

@@ -13,6 +13,7 @@ import { setEnabled as setAudioEnabled } from '../systems/audioSystem.js'
 
 export function useLevelProgress() {
   const [maxLevel, setMaxLevelState] = useState(() => Storage.getMaxLevel())
+  const [clearedLevel, setClearedLevelState] = useState(() => Storage.getClearedLevel())
   const [bestScore, setBestScoreState] = useState(() => Storage.getBestScore())
   const [soundEnabled, setSoundEnabledState] = useState(() =>
     Storage.getSoundEnabled(),
@@ -27,6 +28,16 @@ export function useLevelProgress() {
   const unlockLevel = useCallback((levelId) => {
     Storage.setMaxLevel(levelId)
     setMaxLevelState(Storage.getMaxLevel())
+  }, [])
+
+  /**
+   * Marca un nivel como SUPERADO. Va aparte de unlockLevel porque el último nivel
+   * no desbloquea ninguno posterior: sin esto, ganarlo no contaba y el progreso del
+   * menú se quedaba para siempre en "11/12".
+   */
+  const recordCleared = useCallback((levelId) => {
+    Storage.setClearedLevel(levelId)
+    setClearedLevelState(Storage.getClearedLevel())
   }, [])
 
   /** Registra una puntuación (guarda solo si es récord). */
@@ -51,9 +62,11 @@ export function useLevelProgress() {
 
   return {
     maxLevel,
+    clearedLevel,
     bestScore,
     soundEnabled,
     unlockLevel,
+    recordCleared,
     recordScore,
     toggleSound,
     isUnlocked,

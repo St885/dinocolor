@@ -161,12 +161,51 @@
   align-items: center;
   gap: 10px;
 }
-/* "Escenario" luminoso detrás de la mascota (foco emocional) */
+/* "Escenario" luminoso detrás de la mascota (foco emocional).
+   El TAMAÑO viene de --mascot-size (lo pone el JS por defecto), pero al vivir en CSS
+   una clase puede hacerlo responsive con clamp(). Antes el tamaño iba en un style
+   inline en píxeles fijos: en móviles bajos, el héroe de 256 px empujaba al logo y al
+   botón fuera del marco y el contenido se recortaba (no hay scroll en estas pantallas). */
 .mascot-canvas {
   position: relative;
+  width: var(--mascot-size);
+  height: var(--mascot-size);
+  flex-shrink: 0;
   pointer-events: none;
   filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.45));
   animation: mascot-float 3.4s ease-in-out infinite;
+}
+
+/* Indicador de carga del modelo: antes el hueco se quedaba VACÍO (y en un móvil lento
+   parecía que la pantalla estaba rota) hasta que el GLB terminaba de descargarse. */
+.mascot-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.mascot-loader i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c-green);
+  box-shadow: var(--glow-green);
+  animation: mascot-load 1s ease-in-out infinite;
+}
+.mascot-loader i:nth-child(2) { animation-delay: 0.13s; }
+.mascot-loader i:nth-child(3) { animation-delay: 0.26s; }
+@keyframes mascot-load {
+  0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.45; }
+  50% { transform: translateY(-7px) scale(1); opacity: 1; }
+}
+/* Aparición suave del modelo cuando por fin está listo */
+.mascot-canvas.is-ready canvas { animation: mascot-in 0.45s ease both; }
+@keyframes mascot-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
 .mascot-canvas::before {
   content: '';
@@ -185,11 +224,19 @@
 }
 .mascot-svg--cheer { animation: mascot-cheer 0.6s ease-in-out infinite; }
 
-/* Variante "héroe" (pantalla de inicio): protagonista y más grande */
-/* Un poco más de aire entre el globo y el modelo para despejar la cabeza. */
-.mascot--hero { gap: 16px; }
-/* Variante "resultado": igual encuadre que el héroe pero algo más compacta. */
-.mascot--result { gap: 12px; }
+/* Variante "héroe" (pantalla de inicio): protagonista y más grande. El clamp() con vh
+   hace que en pantallas bajitas el dino se ENCOJA en vez de recortarse él o recortar
+   al resto de la pantalla. */
+.mascot--hero {
+  gap: 16px;
+  --mascot-size: clamp(176px, 30vh, 260px);
+}
+/* Variante "resultado": mismo encuadre, más compacta (aquí compite con el panel de
+   estadísticas y dos botones, así que cede altura primero). */
+.mascot--result {
+  gap: 10px;
+  --mascot-size: clamp(120px, 19vh, 168px);
+}
 .mascot--hero .mascot-canvas::before {
   inset: -24% -16% -8%;
   background:
@@ -257,9 +304,18 @@
 .sound-toggle--inline { position: static; width: 46px; height: 46px; }
 
 /* ============================ Menú / selección de nivel ============================ */
-/* Leve atmósfera superior para que el menú no se sienta plano/oscuro */
-.scene--menu {
-  background: radial-gradient(130% 55% at 50% -10%, rgba(84, 255, 157, 0.09), transparent 55%);
+/* Atmósfera jurásica: amanecer cálido arriba + lomas de jungla al pie (identidad
+   dino). Va en el background del scene: no hace scroll con el contenido y respeta
+   el marco tipo teléfono del escritorio (sin position:fixed). */
+.scene--start,
+.scene--menu,
+.scene--result {
+  background:
+    radial-gradient(90% 30% at 72% -6%, rgba(255, 214, 130, 0.10), transparent 60%),
+    radial-gradient(130% 55% at 50% -10%, rgba(84, 255, 157, 0.10), transparent 55%),
+    radial-gradient(60% 13% at 10% 102%, rgba(12, 48, 32, 0.9), transparent 72%),
+    radial-gradient(55% 11% at 90% 102%, rgba(10, 42, 28, 0.85), transparent 72%),
+    radial-gradient(90% 10% at 50% 104%, rgba(84, 255, 157, 0.07), transparent 75%);
 }
 .menu-header {
   width: 100%;
@@ -312,6 +368,14 @@
   margin-bottom: 6px;
 }
 
+/* Nombre del siguiente nivel bajo el botón Continuar: da contexto sin ocupar sitio */
+.menu-next-hint {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--c-ink-dim);
+  text-align: center;
+}
+
 .level-grid {
   width: 100%;
   display: grid;
@@ -350,6 +414,25 @@
 .level-card--extrema::before { background: linear-gradient(90deg, var(--c-pink), var(--c-purple)); }
 .level-card:not(:disabled):active { transform: scale(0.95); }
 .level-card:not(:disabled):hover { box-shadow: var(--shadow), 0 0 0 1px var(--c-stroke-strong); }
+/* Brillo de cristal superior (acabado premium) */
+.level-card::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), transparent);
+  pointer-events: none;
+}
+/* Nivel completado: tinte verde claro y marcado — se distingue de un vistazo del
+   nivel actual y de los bloqueados (antes los tres se parecían demasiado). */
+.level-card--done {
+  background: linear-gradient(180deg, rgba(32, 84, 58, 0.85), rgba(17, 54, 37, 0.78));
+  border-color: rgba(84, 255, 157, 0.45);
+}
+.level-card--done .level-card-num { opacity: 0.9; }
+.level-card--done .level-card-name { color: var(--c-ink); }
 
 .level-card-num {
   font-size: 1.7rem;
@@ -374,11 +457,19 @@
 .level-card--dificil .level-card-num { color: var(--c-orange); }
 .level-card--extrema .level-card-num { color: var(--c-pink); }
 
+/* Bloqueado: inequívocamente apagado. Antes el gris era tan leve (grayscale 0.4) que
+   una tarjeta bloqueada podía confundirse con una jugable — y al tocarla no pasaba nada. */
 .level-card--locked {
-  filter: grayscale(0.4) brightness(0.86);
+  filter: grayscale(0.85) brightness(0.6);
+  opacity: 0.75;
+  border-color: rgba(150, 255, 205, 0.08);
+  box-shadow: none;
   cursor: not-allowed;
 }
-.level-card--locked::before { opacity: 0.55; }
+.level-card--locked::before { opacity: 0.3; }
+.level-card--locked .level-card-num { color: var(--c-ink-dim); font-size: 1.35rem; }
+.level-card--locked .level-card-name,
+.level-card--locked .level-card-diff { color: var(--c-ink-dim); }
 
 /* Nivel completado: insignia de estrella */
 .level-card-badge {
@@ -435,56 +526,93 @@
   box-shadow: inset 0 0 110px 18px rgba(0, 0, 0, 0.5);
 }
 
-/* ---- Mini mascota de apoyo (Oliver reactivo) en GameScene: no invasiva ---- */
-.mini-dino {
+/* ---- Acompañante 3D (T-Rexo) en su tarima, GameScene: no invasivo ----
+   La tarima mide 100 px de alto y arranca en 54 px: ocupa hasta ~154 px desde arriba.
+   Board3D reserva EXACTAMENTE esa banda (TOP_RESERVE_PX) y encaja el tablero por
+   debajo, así que T-Rexo ya no se come la pelota de arriba a la izquierda.
+   Si cambias el alto o el top de aquí, actualiza TOP_RESERVE_PX en Board3D.jsx. */
+.mini-dino2 {
   position: absolute;
   z-index: 3;
+  top: calc(54px + var(--safe-top)); /* bajo el botón de pausa */
+  left: 8px;
   pointer-events: none; /* nunca bloquea toques del tablero ni del HUD */
+}
+/* "Tarima" jurásica: losa redondeada con filo verde y foco cálido, integrada al mundo */
+.mini-dino2-stage {
+  position: relative;
+  width: 112px;
+  height: 100px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 16px 16px 24px 24px;
+  background:
+    radial-gradient(72% 52% at 50% 40%, rgba(84, 255, 157, 0.16), transparent 72%),
+    linear-gradient(180deg, rgba(14, 42, 31, 0.4), rgba(6, 18, 13, 0.58));
+  border: 1px solid rgba(150, 255, 205, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 20px rgba(0, 0, 0, 0.42);
 }
-.mini-dino--top-left {
-  top: calc(62px + var(--safe-top)); /* justo bajo el botón de pausa */
-  left: 10px;
+/* Losa luminosa bajo los pies */
+.mini-dino2-stage::before {
+  content: '';
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: 9px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(84, 255, 157, 0.26), transparent 78%);
 }
-.mini-dino-body {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+.mini-dino2-shadow {
+  position: absolute;
+  bottom: 11px;
+  left: 50%;
+  width: 50px;
+  height: 12px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.5), transparent 80%);
 }
-.mini-dino--success .mini-dino-body { animation: mini-pop 0.5s ease; }
-.mini-dino--fail .mini-dino-body { animation: mini-shake 0.45s ease; }
-@keyframes mini-pop {
+/* Deriva suave dentro de la tarima. Es CORTA a propósito: T-Rexo no tiene clip de
+   caminar, y un recorrido largo con animación de idle se ve como patinaje sobre hielo. */
+.mini-dino2-track {
+  position: relative;
+  transition: transform 3s cubic-bezier(0.45, 0, 0.55, 1);
+  will-change: transform;
+}
+.mini-dino2-track[data-side='0'] { transform: translateX(-9px); }
+.mini-dino2-track[data-side='1'] { transform: translateX(9px); }
+.mini-dino2-flip { transform: scaleX(var(--facing, 1)); }
+/* Celebración breve al acertar */
+.mini-dino2-track.is-cheer .mini-dino2-model { animation: mini2-cheer 0.6s ease; }
+@keyframes mini2-cheer {
   0%, 100% { transform: scale(1); }
-  40% { transform: scale(1.16) translateY(-3px); }
+  40% { transform: scale(1.14) translateY(-4px); }
 }
-@keyframes mini-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
-
-/* Mini-mensaje breve (¡Bien! / ¡Casi!) sobre la mascota */
-.mini-dino-msg {
-  font-size: 0.68rem;
+/* Nombre del acompañante (identidad sutil) */
+.mini-dino2-label {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.52rem;
   font-weight: 800;
-  padding: 3px 9px;
-  border-radius: var(--radius-pill);
-  background: rgba(6, 18, 13, 0.82);
-  border: 1px solid var(--c-stroke);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
   color: var(--c-green);
+  background: rgba(6, 18, 13, 0.85);
+  border: 1px solid var(--c-stroke);
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(4px);
-  animation: mini-msg 1.1s ease forwards;
 }
-.mini-dino-msg--fail { color: var(--c-orange); border-color: rgba(255, 138, 61, 0.4); }
-@keyframes mini-msg {
-  0% { opacity: 0; transform: translateY(4px) scale(0.9); }
-  15% { opacity: 1; transform: translateY(0) scale(1); }
-  80% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-3px); }
-}
+/* Ajustes del DinoMascot embebido: sin flotación ni glow de "héroe" (usa la tarima) */
+.mini-dino2-model .mascot-canvas { animation: none; filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.45)); }
+.mini-dino2-model .mascot-canvas::before { display: none; }
+/* El puntito de carga del modelo sobra en una figura de 88 px */
+.mini-dino2-model .mascot-loader { display: none; }
 
 .hud {
   position: absolute;
@@ -501,9 +629,8 @@
 .ghud-top { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .ghud-pause {
   pointer-events: auto;
-  width: 40px; height: 40px;
-  border-radius: 12px;
-  font-size: 1.15rem; font-weight: 900; line-height: 1; letter-spacing: -1px;
+  width: 42px; height: 42px;
+  border-radius: 13px;
   color: var(--c-ink-soft);
   background: linear-gradient(180deg, var(--c-panel-2), var(--c-panel));
   border: 1px solid var(--c-stroke);
@@ -513,9 +640,34 @@
 }
 .ghud-pause:active { transform: scale(0.92); }
 .ghud-pause:hover { border-color: var(--c-stroke-strong); }
-.ghud-topright { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-.ghud-level-num { font-weight: 800; font-size: 0.92rem; letter-spacing: 0.8px; color: var(--c-ink); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65); }
-.ghud-best { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 0.9rem; color: var(--c-gold); text-shadow: var(--glow-gold); font-variant-numeric: tabular-nums; }
+/* Icono de pausa crisp (dos barras) en vez del glifo */
+.ghud-pause-bars { display: inline-flex; gap: 4px; }
+.ghud-pause-bars i {
+  width: 4px; height: 15px; border-radius: 2px;
+  background: var(--c-ink-soft);
+  box-shadow: 0 0 7px rgba(84, 255, 157, 0.28);
+}
+
+/* Chips superiores derechos (nivel · mejor) consistentes con el resto del HUD.
+   RENDIMIENTO: sin backdrop-filter. El HUD llegó a tener OCHO elementos con blur de
+   fondo en vivo (chips, cronómetro, puntuación, cada stat, meta, tarima...). Cada uno
+   fuerza una capa de composición y un pase de desenfoque POR FRAME sobre un canvas
+   WebGL que ya está a tope: es de lo más caro que se puede pedir en un móvil. Ahora
+   solo lo conservan el cronómetro y el bloque META, que son los que se leen sobre el
+   tablero; el resto usa un fondo sólido casi opaco que se ve igual y cuesta cero. */
+.ghud-topright { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.ghud-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, rgba(13, 36, 27, 0.94), rgba(8, 22, 16, 0.94));
+  border: 1px solid var(--c-stroke);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.ghud-level-num { font-size: 0.8rem; letter-spacing: 0.6px; color: var(--c-ink); }
+.ghud-level-num b { color: var(--c-green); letter-spacing: 1px; }
+.ghud-best { font-size: 0.84rem; color: var(--c-gold); text-shadow: var(--glow-gold); }
 
 /* ---- Timer + puntuación centrados ---- */
 .ghud-center {
@@ -525,6 +677,8 @@
   transform: translateX(-50%);
   display: flex; flex-direction: column; align-items: center; gap: 7px;
   pointer-events: none;
+  /* Ancla del popup de puntos: sale pegado al marcador, no sobre el tablero */
+  --popup-anchor: 1;
 }
 .ghud-timer {
   position: relative;
@@ -540,11 +694,14 @@
   backdrop-filter: blur(6px);
 }
 .ghud-timer-ico { font-size: 0.9em; opacity: 0.9; }
+/* La barra recibe un valor nuevo UNA VEZ POR SEGUNDO (useTimer ya no re-renderiza en
+   cada frame) y la transición lineal de 1s hace el resto: se ve tan continua como
+   antes, pero cuesta 1 render/s en vez de 60. */
 .ghud-timer-fill {
   position: absolute; left: 0; bottom: 0; height: 3px;
   background: linear-gradient(90deg, var(--c-cyan), var(--c-green));
   border-radius: 2px;
-  transition: width 0.16s linear;
+  transition: width 1s linear;
 }
 .ghud-timer.is-low { color: var(--c-red); border-color: var(--c-red); animation: pulse-low 0.55s ease-in-out infinite; }
 .ghud-timer.is-low .ghud-timer-fill { background: linear-gradient(90deg, var(--c-red), var(--c-orange)); }
@@ -553,16 +710,22 @@
   display: flex; flex-direction: column; align-items: center; line-height: 1;
   padding: 5px 20px 7px;
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(13, 36, 27, 0.5), rgba(8, 22, 16, 0.42));
+  background: linear-gradient(180deg, rgba(13, 36, 27, 0.72), rgba(8, 22, 16, 0.64));
   border: 1px solid rgba(150, 255, 205, 0.14);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(5px);
 }
 .ghud-score-label { font-size: 0.6rem; font-weight: 800; letter-spacing: 2.5px; color: var(--c-ink-dim); margin-bottom: 1px; }
 .ghud-score-value {
+  display: inline-block;
   font-size: 2.15rem; font-weight: 800; color: var(--c-green);
   text-shadow: 0 0 18px rgba(84, 255, 157, 0.5), 0 2px 0 rgba(0, 0, 0, 0.4);
   font-variant-numeric: tabular-nums;
+  animation: score-pop 0.34s cubic-bezier(0.22, 1.4, 0.4, 1); /* pop al cambiar (keyed en JSX) */
+}
+@keyframes score-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 
 .hud-spacer { flex: 1; }
@@ -577,14 +740,19 @@
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: rgba(6, 18, 13, 0.55);
+  background: rgba(6, 18, 13, 0.86);
   border: 1px solid rgba(150, 255, 205, 0.14);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(4px);
   font-variant-numeric: tabular-nums;
 }
 .ghud-stats .s-combo { color: var(--c-ink-soft); transition: color 0.2s ease; }
-.ghud-stats .s-combo.is-hot { color: var(--c-orange); border-color: rgba(255, 138, 61, 0.5); }
+.ghud-stats .s-combo.is-hot {
+  color: var(--c-orange); border-color: rgba(255, 138, 61, 0.5);
+  animation: combo-pulse 0.7s ease-in-out infinite;
+}
+@keyframes combo-pulse {
+  50% { transform: scale(1.09); box-shadow: 0 0 13px rgba(255, 138, 61, 0.55); }
+}
 .ghud-stats .s-hit { color: var(--c-green); }
 .ghud-stats .s-miss { color: var(--c-red); }
 
@@ -599,10 +767,11 @@
   box-shadow: var(--shadow-sm), var(--inset-hi);
   backdrop-filter: blur(7px);
 }
-.ghud-meta-row { display: flex; align-items: baseline; justify-content: space-between; }
-.ghud-meta-label { font-size: 0.66rem; font-weight: 800; letter-spacing: 2.5px; color: var(--c-ink-dim); }
+.ghud-meta-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ghud-meta-label { font-size: 0.66rem; font-weight: 800; letter-spacing: 2px; color: var(--c-ink-dim); white-space: nowrap; }
 .ghud-meta-value { font-size: 0.92rem; font-weight: 800; color: var(--c-ink); font-variant-numeric: tabular-nums; }
 .ghud-metabar {
+  position: relative;
   height: 13px; border-radius: var(--radius-pill);
   background: rgba(3, 14, 9, 0.7);
   border: 1px solid rgba(150, 255, 205, 0.12);
@@ -613,10 +782,24 @@
   display: block; height: 100%; border-radius: var(--radius-pill);
   background: linear-gradient(90deg, #19c46e, var(--c-green), #b6ff5a);
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 0 12px rgba(84, 255, 157, 0.5);
-  transition: width 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Brillo que recorre la barra: recuerda que se avanza hacia la meta */
+.ghud-metabar > i::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 34px;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: meta-shine 2.4s ease-in-out infinite;
+}
+@keyframes meta-shine {
+  0%, 60% { left: -34px; }
+  100% { left: 100%; }
 }
 
 /* Cofre (esquina inferior derecha del área de juego) */
+.ghud-chest-slot { position: relative; flex-shrink: 0; }
 .ghud-chest {
   pointer-events: auto;
   flex-shrink: 0;
@@ -630,26 +813,46 @@
 }
 .ghud-chest:active { transform: scale(0.9) rotate(-3deg); }
 @keyframes chest-bob { 50% { transform: translateY(-4px); } }
+/* El cofre era un botón que no hacía NADA al pulsarlo: se sentía roto. Ahora al menos
+   responde y dice a qué juega mientras no tenga recompensas de verdad. */
+.ghud-chest-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, #ffe89a, var(--c-gold));
+  color: #4a2c05;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  animation: bubble-pop 0.3s cubic-bezier(0.22, 1.4, 0.4, 1) both;
+}
 
-/* Popup de puntos / fallo */
+/* Popup de puntos / fallo.
+   Va anclado DENTRO de .ghud-center, justo debajo del marcador, y sube hacia él: los
+   puntos "vuelan al marcador". Antes estaba en el 27 % de la pantalla, es decir,
+   flotando encima del tablero y tapando precisamente las pelotas que hay que mirar. */
 .hud-popup {
   position: absolute;
-  top: 27%; /* sobre el tablero (que arranca ~34%), nunca encima de las pelotas */
+  top: 100%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 1.95rem;
+  margin-top: 4px;
+  font-size: 1.7rem;
   font-weight: 800;
   pointer-events: none;
+  white-space: nowrap;
   animation: popup 0.7s ease-out forwards;
-  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.75);
 }
 .hud-popup--fast { color: var(--c-green); }
 .hud-popup--normal { color: var(--c-cyan); }
 .hud-popup--bad { color: var(--c-red); }
 @keyframes popup {
-  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); }
-  22% { opacity: 1; transform: translate(-50%, -55%) scale(1.15); }
-  100% { opacity: 0; transform: translate(-50%, -95%) scale(1); }
+  0% { opacity: 0; transform: translate(-50%, 10px) scale(0.6); }
+  22% { opacity: 1; transform: translate(-50%, -2px) scale(1.14); }
+  100% { opacity: 0; transform: translate(-50%, -30px) scale(0.95); }
 }
 
 /* Destello de pantalla según evento */
@@ -663,10 +866,85 @@
 .hud-flash--bad { box-shadow: inset 0 0 130px rgba(255, 107, 107, 0.55); }
 @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
 
+/* ============================ Pausa ============================ */
+/* El botón de pausa PAUSA de verdad (congela cronómetro y luces en useGameLoop).
+   Antes salía directo al menú perdiendo la partida sin previo aviso. */
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 12, 8, 0.72);
+  backdrop-filter: blur(6px);
+  animation: scene-fade 0.18s ease both;
+}
+.pause-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 20px 18px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(24, 62, 46, 0.96), rgba(10, 30, 21, 0.96));
+  border: 1px solid var(--c-stroke-strong);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: pause-in 0.28s cubic-bezier(0.22, 1.4, 0.4, 1) both;
+}
+@keyframes pause-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pause-eyebrow {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--c-green);
+}
+.pause-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--c-ink);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+.pause-level { font-size: 0.95rem; font-weight: 700; color: var(--c-ink-dim); }
+.pause-stats {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+.pause-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(5, 18, 12, 0.6);
+  border: 1px solid var(--c-stroke);
+}
+.pause-stat-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--c-ink-dim); }
+.pause-stat strong { font-size: 1.25rem; font-weight: 800; color: var(--c-green); font-variant-numeric: tabular-nums; }
+.pause-stat strong i { font-size: 0.75rem; font-style: normal; color: var(--c-ink-dim); }
+.pause-hint { margin-top: 10px; font-size: 0.72rem; font-weight: 600; color: var(--c-ink-dim); text-align: center; }
+
+/* ============================ Error (ErrorBoundary) ============================ */
+/* Sin esto, cualquier excepción de React dejaba una PANTALLA EN BLANCO sin salida. */
+.scene--error {
+  gap: 20px;
+  background: radial-gradient(120% 60% at 50% 0%, rgba(255, 138, 61, 0.14), transparent 60%);
+}
+
 /* ============================ Resultado ============================ */
-.scene--result { gap: clamp(12px, 2.6vh, 22px); }
+.scene--result { gap: clamp(10px, 2.2vh, 18px); }
 .result-title {
-  font-size: clamp(2rem, 9vw, 2.8rem);
+  font-size: clamp(1.8rem, 8vw, 2.6rem);
   font-weight: 800;
   filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.28));
   animation: title-pop 0.5s cubic-bezier(0.22, 1.4, 0.4, 1) both;
@@ -699,18 +977,43 @@
 }
 @keyframes rays-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
-.result-stats { display: flex; flex-direction: column; gap: 6px; }
-.stat-row {
+/* Panel de resultado COMPACTO: puntuación grande + rejilla 2x2.
+   Antes eran 5 filas apiladas y, sumadas al título, la mascota y dos botones, el
+   contenido se salía del marco en móviles normales (la escena no tiene scroll: lo que
+   sobraba simplemente se recortaba, y a veces se comía el botón "Menú"). */
+.result-stats { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+.result-score {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  font-size: 1.05rem;
-  font-weight: 700;
-  padding: 5px 2px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 1px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 178, 46, 0.22);
 }
-.stat-row:last-child { border-bottom: 0; }
-.stat-row span { display: flex; align-items: center; gap: 9px; color: var(--c-ink-soft); }
-.stat-row strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.result-score-label { font-size: 0.7rem; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: var(--c-ink-dim); }
+.result-score-value {
+  font-size: clamp(2.1rem, 11vw, 2.9rem);
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--c-gold);
+  text-shadow: var(--glow-gold), 0 2px 0 rgba(0, 0, 0, 0.35);
+  font-variant-numeric: tabular-nums;
+  animation: title-pop 0.55s cubic-bezier(0.22, 1.4, 0.4, 1) both;
+}
+.result-score-target { font-size: 0.78rem; font-weight: 700; color: var(--c-ink-dim); }
+
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.result-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  background: rgba(5, 18, 12, 0.5);
+  border: 1px solid rgba(150, 255, 205, 0.1);
+}
+.result-cell span { font-size: 0.76rem; font-weight: 700; color: var(--c-ink-soft); }
+.result-cell strong { font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .stat-good { color: var(--c-green); }
 .stat-bad { color: var(--c-red); }
