@@ -1,0 +1,66 @@
+# Publica DinoColor en GitHub Pages con GitHub Actions.
+#
+# Método "artefacto" moderno (configure-pages + upload-pages-artifact + deploy-pages):
+#   - NO versiona dist/ en el repo: el sitio se compila en CI en cada push a main.
+#   - NO usa una rama gh-pages.
+#   - NO usa secretos: el permiso id-token: write habilita el despliegue con OIDC.
+#   - Jekyll no interviene con este método, así que .nojekyll es irrelevante aquí.
+#
+# URL resultante: https://st885.github.io/dinocolor/
+# El build usa base:'./' (rutas relativas), validado sirviéndolo bajo /dinocolor/.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # permite relanzar el deploy a mano desde la pestaña Actions
+
+# Permisos mínimos necesarios para publicar en Pages (nada de escritura de código).
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue a la vez; no cancela el que ya esté publicando (evita dejar Pages a medias).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # LTS estable; Vite 5 requiere Node 18+
+          cache: npm
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact (dist/)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
