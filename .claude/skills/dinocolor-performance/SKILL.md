@@ -1,0 +1,54 @@
+---
+name: dinocolor-performance
+description: Auditoría y optimización de rendimiento de DinoColor (tamaño de dist/, GLB pesados, assets duplicados, re-renders React, memo, geometrías/materiales, timers sin cleanup, bundle Three.js). Úsala para "optimiza el rendimiento", "reduce el peso", "detecta N mejoras de performance".
+---
+
+# dinocolor-performance
+
+Optimización de rendimiento de DinoColor **sin cambiar mecánica**. Asume `dinocolor-context` cargado. Aplica solo cambios seguros; mide antes/después cuando puedas.
+
+## Regla crítica de assets (la más importante)
+
+- **Oliver NO debe volver a `public/`** salvo que esté optimizado (< 5 MB) o sea estrictamente necesario y confirmado. Sus dos GLB pesan 66 MB (22 + 44) y **ninguna escena los usa** (ver `dinocolor-mascot-3d`).
+- **Objetivo futuro:** cualquier GLB de mascota en runtime debe pesar **< 5 MB** (Draco/KTX2).
+- La mascota en runtime es **T-Rexo ligero** (`dino_color_mascot.glb`, 0,9 MB). Es el único GLB que debe descargarse al jugar.
+
+## Qué revisar
+
+**Peso / build**
+- [ ] Tamaño de `dist/` (objetivo actual ~2,0 MB). `du -sh dist`.
+- [ ] Ningún GLB pesado en `dist/` (`find dist -name '*.glb' -size +5M`). Oliver no debe aparecer.
+- [ ] Assets **duplicados** entre `assets/` (fuente) y `public/` (runtime): solo debe estar en `public/` lo que el juego sirve de verdad.
+- [ ] Uso innecesario de `public/`: todo lo de `public/` se empaqueta en cada build.
+- [ ] Bundle de Three.js separado (`manualChunks`: `three` / `react` / juego) para caché.
+- [ ] Advertencias de chunks (`chunkSizeWarningLimit`) — no ocultar problemas reales, solo el ruido esperado de `three`.
+
+**React / R3F**
+- [ ] Re-renderizados innecesarios: `memo` en componentes 3D pesados (`Board3D`, `Ball3D`, `Background3D`, `GameHUD`, `MiniDinoWalker`, `DinoMascot`).
+- [ ] Geometrías/materiales/texturas **recreados** en cada render o cada frame → compartir a nivel de módulo (esfera, planos, sprites de glow, telón del fondo, envMap).
+- [ ] Arrays de posiciones / CanvasTexture recreados innecesariamente.
+- [ ] `useThree()` **con selector** (`useThree(s => s.viewport)`), no el store entero.
+- [ ] Separar estado **visual** de estado de **gameplay** (p. ej. el cronómetro notifica a React 1 vez/seg, no 60).
+- [ ] `useMemo`/`useCallback` donde evite trabajo o estabilice props (`onTap` estable, layout memoizado).
+
+**Ciclo de vida / fugas**
+- [ ] `setInterval`/`setTimeout`/`requestAnimationFrame` con **cleanup** al desmontar.
+- [ ] `useEffect` sin cleanup; listeners (`visibilitychange`, mixer de animación) removidos al salir.
+- [ ] Timers que sigan vivos al cambiar de pantalla (mini T-Rexo, popups).
+
+**3D / luces**
+- [ ] Nº de luces **constante** durante la partida (no una luz por pelota). Menos luces = más barato en móvil.
+- [ ] Segmentos de geometría razonables (esferas 32×24, no 40×40) — invisible a ese tamaño.
+- [ ] `dpr={[1,2]}` en el Canvas; el segundo Canvas (mini T-Rexo) en `quality="low"` (sin antialias, DPR menor).
+- [ ] `backdrop-filter` limitado (cada uno es un pase de desenfoque por frame sobre WebGL).
+
+**Git**
+- [ ] **`dist/` nunca** en Git. **`node_modules/` nunca** en Git. Verifícalo con `git ls-files`.
+
+## Procedimiento
+
+1. Medir estado actual (peso de `dist/`, GLB, y si puedes, ms/frame o recuento de renders).
+2. Aplicar cambios **seguros** (no tocar mecánica, niveles ni scoring).
+3. **`npm run build`** verde + comprobar que `dist/` no engordó ni metió GLB pesados.
+4. Entregar lista numerada de optimizaciones aplicadas: **qué**, **en qué archivo**, **qué problema evita**.
+5. Documentar como *pendiente* lo que requiera herramientas externas (Draco/KTX2, reexportar modelos) — no lo inventes como hecho.
