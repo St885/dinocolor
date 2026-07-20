@@ -28,7 +28,15 @@ function getCtx() {
   if (!ctx) {
     const AC = window.AudioContext || window.webkitAudioContext
     if (!AC) return null
-    ctx = new AC()
+    // try/catch: algunos WebView/navegadores restringidos lanzan al crear el contexto
+    // (o al superar el límite de contextos). getCtx() se llama desde el handler de un
+    // botón (unlock()), así que si esto lanzara, "mataría" ese click. Ante el fallo,
+    // el juego simplemente se queda sin audio, nunca roto.
+    try {
+      ctx = new AC()
+    } catch {
+      return null
+    }
   }
   // Los navegadores suspenden el contexto hasta el primer gesto del usuario.
   if (ctx.state === 'suspended') ctx.resume().catch(() => {})

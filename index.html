@@ -8,6 +8,13 @@
     />
     <meta name="theme-color" content="#0c1f17" />
     <meta name="description" content="DinoColor — juego 3D de reflejos: pulsa rápido las pelotas que se iluminan. Mobile-first, temática jurásica." />
+
+    <!-- Seguridad: no filtrar la URL como referer a terceros. Es seguro en dev y prod.
+         La Content-Security-Policy se inyecta SOLO en el build de producción (ver
+         vite.config.js): en dev rompería el HMR de Vite (usa scripts inline). Las
+         cabeceras que no tienen equivalente <meta> (X-Content-Type-Options,
+         Permissions-Policy) se documentan en docs/SECURITY.md para la capa de hosting. -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

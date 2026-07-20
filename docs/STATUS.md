@@ -2,9 +2,77 @@
 
 > Estado del proyecto. Actualizar al cerrar cada iteración.
 
-**Versión:** 0.2.0 — Revisión integral (bugs · UX · visual · rendimiento)
-**Fecha:** 2026-07-13
+**Versión:** 0.3.0 — 42 niveles + reajuste de dificultad + hardening de seguridad
+**Fecha:** 2026-07-21
 **Stack:** React 18 + Vite 5 + Three.js + @react-three/fiber (JavaScript/JSX)
+
+---
+
+## 🎯 Iteración 2026-07-21 — Niveles, dificultad y seguridad
+
+Sin cambios de mecánica ni dependencias nuevas. Todo validado en navegador (build de
+producción, Chromium + WebGL): **0 errores de consola, 0 peticiones fallidas**.
+
+### Niveles: 12 → 42 (reajuste completo de la curva)
+
+Se reescribió `src/data/levels.js` con **42 niveles** y una curva de dificultad **gradual**
+en 5 tramos, reajustando también los 12 originales (no solo añadiendo al final):
+
+| Tramo | Niveles | Bolas | reactionTime | Layouts | Meta (pace) |
+|---|---|---|---|---|---|
+| Tutorial (fácil) | 1–5 | 1 | 2.6 → 2.2s | square3x3 | ~9–16 pts/s |
+| Principiante (media) | 6–12 | 1–2 | 2.2 → 1.95s | + cross, diamond, circle | ~17–27 |
+| Intermedio (difícil) | 13–22 | 2–3 | 1.9 → 1.65s | + hexagon, triangle, diagonals | ~29–45 |
+| Avanzado (extrema) | 23–32 | 3–4 | 1.8 → 1.45s | todos | ~43–65 |
+| Experto (extrema) | 33–42 | 4 | 1.4 → 1.1s | todos | ~62–89 |
+
+**Criterios de progresión (ver comentario de `levels.js`):**
+- El nivel 1 se gana fácil; 2–3 siguen cómodos.
+- Nunca se suben varias dimensiones a la vez: al introducir +1 bola se **afloja** la
+  reacción; al acelerar la reacción se bajan las bolas o se sube menos la meta.
+- `reactionTime` nunca baja de **1.1s**; `activeBalls` máx **4** (nº sano en móvil);
+  nunca supera las celdas del layout.
+- `targetScore/totalTime` (pace) sube de forma suave; siempre por debajo de lo alcanzable.
+- Sin saltos bruscos entre niveles consecutivos (verificado).
+- Se usan **los 7 layouts** (square3x3, cross, diamond, circle, hexagon, triangle, diagonals).
+
+**Validación de niveles:** nuevo `src/systems/levelValidation.js` (validador puro) +
+autochequeo en dev (`levels.js` bajo `import.meta.env?.DEV`). Resultado determinista:
+**42 niveles, 0 problemas** (ids únicos 1..42, layouts existentes, `activeBalls ≤ celdas`,
+sin negativos, reactionTime ≥ 1.1, metas alcanzables). En dev, la consola imprime
+"42 niveles validados correctamente ✓".
+
+### Seguridad (ver `docs/SECURITY.md`, nuevo)
+
+Auditoría completa: **0 sinks peligrosos** (`dangerouslySetInnerHTML`/`eval`/`new Function`/
+`innerHTML`/`document.write`), **0 `JSON.parse`**, **0 secretos versionados**, storage ya
+robusto. Hardening aplicado:
+- **CSP** inyectada como `<meta>` solo en el build de producción (`vite.config.js`),
+  validada jugando (0 violaciones). `script-src 'self'` bloquea scripts de terceros.
+- **Referrer-Policy** `strict-origin-when-cross-origin` en `index.html`.
+- **`AudioContext` en try/catch** (un WebView restringido ya no puede "matar" el click).
+- **Progreso clampeado** al rango de niveles (localStorage corrupto/heredado ya no
+  desbloquea de forma inconsistente).
+- `docs/SECURITY.md` documenta datos de localStorage, riesgos, cabeceras recomendadas para
+  hosting/Capacitor, política de privacidad y checklist para tiendas.
+
+### Bug corregido (encontrado en la auditoría)
+
+- **[MEDIA] Reanudar tras pausa provocaba fallos masivos.** Las bolas iluminadas guardan
+  un `expireAt` absoluto (`performance.now`), que sigue avanzando durante la pausa; al
+  reanudar, el primer tick las veía TODAS expiradas → "¡FALLO!" en cadena, combo a 0 y
+  pérdida de puntos sin culpa del jugador. `useGameLoop` ahora re-ancla `expireAt` y
+  `activatedAt` por el tiempo pausado. **Verificado**: tras 3,5s de pausa, fallos 0→0 y
+  combo x3 conservado.
+
+### Validaciones (build de producción, Chromium + WebGL)
+
+- `npm run build` verde (dist **2,0 MB**, solo el GLB de T-Rexo).
+- Arranque, Menú (**42 tarjetas**, 41 bloqueadas, "0/42"), jugar y ganar el nivel 1
+  (→ desbloquea el 2, ⭐ 1/42), pausa/reanudar, **nivel avanzado (40)** cargado sin fallos,
+  derrota por tiempo. Sin scroll en gameplay (0 px).
+- Save corrupto (`9999`) → clampado a 42/42, 0 niveles bloqueados, sin crash.
+- CSP activa: 0 violaciones, 0 errores de consola, GLB 200.
 
 ---
 

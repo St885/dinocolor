@@ -87,11 +87,21 @@ dinocolor/
 
 ## 📦 Estado del MVP
 
-✅ **MVP jugable y pulido** (v0.2.0). Pantallas (inicio, menú, juego, **pausa**, resultado) ·
-tablero 3D · timer · iluminación de pelotas · interacción táctil/click · puntuación + combos ·
-victoria/derrota · niveles progresivos · guardado local · sonidos sintetizados · **mascota 3D
+✅ **MVP jugable y pulido** (v0.3.0). **42 niveles** progresivos · pantallas (inicio, menú, juego,
+**pausa**, resultado) · tablero 3D · timer · iluminación de pelotas · interacción táctil/click ·
+puntuación + combos · victoria/derrota · guardado local · sonidos sintetizados · **mascota 3D
 T-Rexo** (con fallback SVG y pantalla de error). `npm run build` **verde**, recorrido completo
 validado en navegador con WebGL: **0 errores de consola**.
+
+**Iteración 2026-07-21** (niveles · dificultad · seguridad):
+
+- 🎚️ **De 12 a 42 niveles**, con la curva de dificultad reajustada de arriba abajo en 5 tramos
+  (tutorial → experto), sin saltos bruscos y con validador automático (42 niveles, 0 problemas).
+- 🔒 **Hardening de seguridad**: CSP en el build, Referrer-Policy, `AudioContext` a prueba de
+  fallos y progreso clampeado. Auditoría sin sinks peligrosos ni secretos. Ver
+  [`docs/SECURITY.md`](docs/SECURITY.md).
+- 🐛 **Bug corregido**: reanudar tras pausa ya no provoca fallos masivos (los plazos de las bolas
+  se congelan con la pausa, como el cronómetro).
 
 **Revisión integral 2026-07-13** (bugs · UX · visual · rendimiento). Lo más gordo:
 

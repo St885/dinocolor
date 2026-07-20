@@ -222,3 +222,38 @@ usar `clamp()` con `vh` y encoger a T-Rexo en pantallas bajitas en vez de recort
 - **Audio: `unlock()` en el PRIMER gesto, sea cual sea.** El `<Button>` ya lo hacía, pero el botón de
   sonido era un `<button>` pelado: si el jugador lo tocaba primero, el `AudioContext` no se creaba y
   el juego quedaba mudo toda la sesión.
+
+## Iteración 2026-07-21 (niveles + seguridad)
+
+- **42 niveles con validador** (`src/data/levels.js` + `src/systems/levelValidation.js`).
+  `validateLevels(levels, layouts)` es **puro** (sin React ni `import.meta`), así que se
+  puede llamar desde un test o un script. `levels.js` lo invoca bajo `import.meta.env?.DEV`
+  (código muerto en producción, y `?.` no rompe en Node sin Vite). El validador comprueba:
+  ids únicos y secuenciales, campos requeridos, layout existente, `activeBalls ≤ celdas`,
+  sin negativos, `reactionTime ≥ 1.0`, color hex, difficulty con estilo CSS, y pace
+  (`targetScore/totalTime`) por debajo de un techo alcanzable.
+  > Recordatorio: solo hay 4 valores de `difficulty` con estilo CSS (`facil`, `media`,
+  > `dificil`, `extrema`). Usar otro deja la tarjeta sin franja de color.
+
+- **Pausa: re-anclar los plazos de las bolas** (`useGameLoop.js`). Las luces guardan un
+  `expireAt` ABSOLUTO. Al reanudar hay que desplazar `expireAt` y `activatedAt` de cada
+  bola por el tiempo pausado (`resume()` usa `pausedAt` sellado en `pause()`), o el primer
+  tick tras la pausa las expira todas de golpe. Es el mismo problema que ya resuelve
+  `useTimer` para el cronómetro, pero para los deadlines de las bolas.
+
+- **CSP solo en el build** (`vite.config.js` → `securityHeadersPlugin`, `apply: 'build'`).
+  Se inyecta con `transformIndexHtml` + `injectTo: 'head-prepend'` (debe ir ANTES de los
+  `<script>`/`<link>` para gobernarlos). **No** se pone en `index.html` fuente porque en dev
+  Vite sirve scripts inline (HMR) que `script-src 'self'` bloquearía. Solo directivas
+  efectivas vía `<meta>`: `frame-ancestors`/`form-action` se ignoran en `<meta>` (avisan por
+  consola) → van como cabecera de hosting (ver `docs/SECURITY.md`). Validado: el juego
+  arranca bajo CSP con 0 violaciones.
+
+- **Progreso clampeado al rango de niveles** (`useLevelProgress.js`). `storageSystem` evita
+  NaN/negativos pero no conoce cuántos niveles hay; el hook clampa a `[1..N]`/`[0..N]` con
+  `totalLevels()` para que un `localStorage` corrupto (`maxLevel=9999`) no desbloquee de
+  forma inconsistente ni apunte más allá del último nivel.
+
+- **`AudioContext` en try/catch** (`audioSystem.js`): crearlo puede lanzar en WebView
+  restringidos; como se llama desde el handler de un botón (`unlock()`), sin el try/catch
+  una excepción mataría ese click. Ante el fallo, el juego se queda sin audio, nunca roto.

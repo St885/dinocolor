@@ -50,6 +50,7 @@ const freshSim = () => ({
   hits: 0,
   misses: 0,
   finished: false,
+  pausedAt: null, // timestamp al pausar; sirve para re-anclar los plazos de las bolas
 })
 
 export function useGameLoop({ level, onFinish }) {
@@ -234,8 +235,29 @@ export function useGameLoop({ level, onFinish }) {
     [live, level, finish, sync],
   )
 
-  const pause = useCallback(() => setPaused(true), [])
-  const resume = useCallback(() => setPaused(false), [])
+  // Pausa/reanuda. Las bolas iluminadas guardan un `expireAt` ABSOLUTO (reloj que no se
+  // detiene durante la pausa). Sin re-anclarlas, al reanudar el primer tick vería TODAS
+  // las bolas como expiradas de golpe → "¡FALLO!" masivo, combo a 0 y pérdida de puntos
+  // sin culpa del jugador. Al reanudar desplazamos `expireAt` y `activatedAt` por el
+  // tiempo que estuvo pausado, así cada bola conserva el tiempo que le quedaba (y el
+  // bonus de acierto "rápido" tampoco cuenta la pausa). El cronómetro ya se congela solo
+  // en useTimer; esto hace lo mismo con los plazos de las bolas.
+  const pause = useCallback(() => {
+    sim.current.pausedAt = now()
+    setPaused(true)
+  }, [])
+  const resume = useCallback(() => {
+    const s = sim.current
+    if (s.pausedAt != null) {
+      const delta = Math.max(0, now() - s.pausedAt)
+      for (const light of s.lights.values()) {
+        light.expireAt += delta
+        light.activatedAt += delta
+      }
+      s.pausedAt = null
+    }
+    setPaused(false)
+  }, [])
 
   return {
     layout,

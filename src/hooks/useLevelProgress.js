@@ -10,10 +10,22 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as Storage from '../systems/storageSystem.js'
 import { setEnabled as setAudioEnabled } from '../systems/audioSystem.js'
+import { totalLevels } from '../systems/levelSystem.js'
 
+/**
+ * Ancla el progreso leído al rango de niveles que EXISTEN de verdad. storageSystem ya
+ * evita NaN/negativos, pero no conoce cuántos niveles hay: un localStorage manipulado o
+ * heredado de una versión con más niveles podría traer, p. ej., maxLevel=9999 (que
+ * desbloquearía todo) o apuntar más allá del último nivel. Clampear aquí mantiene el
+ * progreso siempre dentro de [1..N] / [0..N].
+ */
 export function useLevelProgress() {
-  const [maxLevel, setMaxLevelState] = useState(() => Storage.getMaxLevel())
-  const [clearedLevel, setClearedLevelState] = useState(() => Storage.getClearedLevel())
+  const total = totalLevels()
+  const clampMax = (v) => Math.min(Math.max(1, v), total)
+  const clampCleared = (v) => Math.min(Math.max(0, v), total)
+
+  const [maxLevel, setMaxLevelState] = useState(() => clampMax(Storage.getMaxLevel()))
+  const [clearedLevel, setClearedLevelState] = useState(() => clampCleared(Storage.getClearedLevel()))
   const [bestScore, setBestScoreState] = useState(() => Storage.getBestScore())
   const [soundEnabled, setSoundEnabledState] = useState(() =>
     Storage.getSoundEnabled(),
@@ -27,8 +39,8 @@ export function useLevelProgress() {
   /** Desbloquea un nivel (si es mayor que el actual). */
   const unlockLevel = useCallback((levelId) => {
     Storage.setMaxLevel(levelId)
-    setMaxLevelState(Storage.getMaxLevel())
-  }, [])
+    setMaxLevelState(Math.min(Math.max(1, Storage.getMaxLevel()), total))
+  }, [total])
 
   /**
    * Marca un nivel como SUPERADO. Va aparte de unlockLevel porque el último nivel
@@ -37,8 +49,8 @@ export function useLevelProgress() {
    */
   const recordCleared = useCallback((levelId) => {
     Storage.setClearedLevel(levelId)
-    setClearedLevelState(Storage.getClearedLevel())
-  }, [])
+    setClearedLevelState(Math.min(Math.max(0, Storage.getClearedLevel()), total))
+  }, [total])
 
   /** Registra una puntuación (guarda solo si es récord). */
   const recordScore = useCallback((score) => {
