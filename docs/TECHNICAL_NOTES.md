@@ -131,6 +131,12 @@ const SAFE_CLIPS = new Set(['idle'])   // resolveClip descarta todo lo demás
 `tools/build_trexo.py`. Cuando esté corregido, añade los clips a `SAFE_CLIPS` **uno a uno,
 mirándolos**, y el juego empezará a usarlos solo (la API no cambia).
 
+> 📄 **El diagnóstico completo (causa raíz en `build_trexo.py`, evidencias por hueso, riesgos,
+> plan Blender y checklist de validación) vive en [`docs/MASCOT_RIG_PLAN.md`](MASCOT_RIG_PLAN.md).**
+> En resumen: el skinning se genera por **proximidad geométrica a 2 huesos, sin anatomía**, así que
+> la panza pesa a la espinilla, la bandana a los brazos y la cara al `jaw`+ojos; `idle` se salva
+> porque casi no mueve brazos ni cabeza.
+
 ### Poses: la emoción sin tocar el esqueleto
 
 Como no podemos reproducir clips expresivos, el lenguaje corporal se hace moviendo el **modelo
