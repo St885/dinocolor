@@ -28,7 +28,7 @@ import DinoMascot from './DinoMascot.jsx'
 const DRIFT_MS = 3400 // cada cuánto cambia de lado de la tarima
 const CHEER_MS = 1100 // celebración al acertar
 
-function MiniDinoWalker({ lastEvent, size = 88 }) {
+function MiniDinoWalker({ lastEvent, size = 88, sleeping = false }) {
   const [side, setSide] = useState(0) // extremo de la tarima hacia el que deriva
   const [cheer, setCheer] = useState(false)
   const cheerRef = useRef(null)
@@ -36,19 +36,29 @@ function MiniDinoWalker({ lastEvent, size = 88 }) {
   // Mira hacia donde deriva.
   const facing = side === 1 ? 1 : -1
 
-  // Deriva lenta de un lado a otro de su tarima.
+  // Deriva lenta de un lado a otro de su tarima. Se detiene con la partida pausada:
+  // un dinosaurio paseando sobre un juego congelado se ve como un fallo.
   useEffect(() => {
+    if (sleeping) return undefined
     const id = setInterval(() => setSide((s) => (s === 0 ? 1 : 0)), DRIFT_MS)
     return () => clearInterval(id)
-  }, [])
+  }, [sleeping])
 
-  // Celebración al acertar: cambia la POSE (salto), no el clip.
+  /**
+   * Celebración al acertar: cambia la POSE (salto), no el clip.
+   *
+   * BUG CORREGIDO: el efecto salía antes con `return undefined` cuando el evento no era
+   * un acierto, y su cleanup (`clearTimeout`) se ejecutaba igual al llegar ese evento.
+   * Resultado: acierto → fallo dejaba el temporizador CANCELADO con `cheer` en true, y
+   * T-Rexo se quedaba celebrando indefinidamente (dando saltos mientras el jugador
+   * fallaba) hasta el siguiente acierto. Ahora el temporizador se gestiona en la ref y
+   * solo se cancela al desmontar: cada acierto reprograma su propio fin.
+   */
   useEffect(() => {
-    if (!lastEvent || lastEvent.type !== 'hit') return undefined
+    if (!lastEvent || lastEvent.type !== 'hit') return
     setCheer(true)
     clearTimeout(cheerRef.current)
     cheerRef.current = setTimeout(() => setCheer(false), CHEER_MS)
-    return () => clearTimeout(cheerRef.current)
   }, [lastEvent])
 
   // El timeout de celebración se re-crea con cada acierto: hay que limpiarlo también
@@ -66,6 +76,7 @@ function MiniDinoWalker({ lastEvent, size = 88 }) {
               pose={cheer ? 'cheer' : 'idle'}
               size={size}
               quality="low"
+              sleeping={sleeping}
               targetHeight={1.02}
               baseY={-0.52}
               cameraY={0.52}

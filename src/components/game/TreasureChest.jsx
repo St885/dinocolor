@@ -3,9 +3,15 @@
  * área de juego. Decorativo/reservado para futuras recompensas (no cambia mecánica).
  * Versión premium: madera con vetas, tapa arqueada con brillo, herrajes dorados,
  * gema central, destellos y una pequeña base luminosa que lo integra al mundo.
+ *
+ * RENDIMIENTO: va memoizado. Vive dentro del HUD, que se re-renderiza con cada punto
+ * y cada segundo del cronómetro; sin memo, React recorría sus ~25 nodos SVG (5
+ * gradientes incluidos) decenas de veces por partida para pintar exactamente lo mismo.
  */
 
-export default function TreasureChest({ onClick, className = '' }) {
+import { memo } from 'react'
+
+function TreasureChest({ onClick, className = '' }) {
   return (
     <button
       type="button"
@@ -79,3 +85,5 @@ export default function TreasureChest({ onClick, className = '' }) {
     </button>
   )
 }
+
+export default memo(TreasureChest)

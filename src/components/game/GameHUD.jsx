@@ -17,9 +17,10 @@
  * -----------------------------------------------------------------------------
  */
 
-import { memo, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import TreasureChest from './TreasureChest.jsx'
 import { formatTime } from '../../utils/formatTime.js'
+import { comboMultiplier } from '../../systems/scoringSystem.js'
 
 /** Vibración móvil opcional y segura (no hace nada si no está soportada). */
 function haptic(pattern) {
@@ -53,11 +54,25 @@ function GameHUD({
   useEffect(() => {
     if (!lastEvent) return undefined
     if (lastEvent.type === 'hit') {
-      setPopup({ text: `+${lastEvent.points}`, kind: lastEvent.fast ? 'fast' : 'normal', key: lastEvent.key })
+      setPopup({
+        text: `+${lastEvent.points}`,
+        // El multiplicador de combo existía en el cálculo pero NO se veía en ninguna
+        // parte: el jugador cobraba x1.5 o x2 sin enterarse de por qué. Ahora viaja
+        // pegado a los puntos, que es justo donde se mira al acertar.
+        mult: lastEvent.multiplier > 1 ? lastEvent.multiplier : null,
+        kind: lastEvent.fast ? 'fast' : 'normal',
+        key: lastEvent.key,
+      })
       setFlash({ kind: 'good', key: lastEvent.key })
       haptic(lastEvent.fast ? 14 : 9)
     } else if (lastEvent.type === 'wrong' || lastEvent.type === 'miss') {
-      setPopup({ text: '¡FALLO!', kind: 'bad', key: lastEvent.key })
+      // Distinguir los dos fallos: dejar apagarse una pelota no es el mismo error que
+      // pulsar una apagada, y antes ambos decían solo "¡FALLO!".
+      setPopup({
+        text: lastEvent.type === 'miss' ? '¡SE APAGÓ!' : '¡FALLASTE!',
+        kind: 'bad',
+        key: lastEvent.key,
+      })
       setFlash({ kind: 'bad', key: lastEvent.key })
       haptic([0, 22, 30, 22])
     }
@@ -77,7 +92,10 @@ function GameHUD({
     return () => clearTimeout(id)
   }, [chestHint])
 
+  const showChestHint = useCallback(() => setChestHint(true), [])
+
   const lowTime = timeLeft <= 5
+  const comboMult = comboMultiplier(combo)
 
   return (
     <div className="hud">
@@ -124,6 +142,7 @@ function GameHUD({
         {popup && (
           <div className={`hud-popup hud-popup--${popup.kind}`} key={`popup-${popup.key}`}>
             {popup.text}
+            {popup.mult && <b className="hud-popup-mult">x{popup.mult}</b>}
           </div>
         )}
       </div>
@@ -133,7 +152,13 @@ function GameHUD({
       {/* ---------- Bloque inferior: stats · meta+barra · cofre ---------- */}
       <div className="ghud-bottom">
         <div className="ghud-stats">
-          <span className={`s-combo ${combo >= 3 ? 'is-hot' : ''}`}>🔥 x{combo}</span>
+          {/* El chip decía "🔥 x4" con la RACHA, no con el multiplicador: parecía que
+              cada acierto valía 4 veces más cuando en realidad valía x1.5. Ahora se ve
+              la racha y, al lado, el multiplicador de verdad cuando ya está activo. */}
+          <span className={`s-combo ${comboMult > 1 ? 'is-hot' : ''}`}>
+            🔥 {combo}
+            {comboMult > 1 && <b className="s-combo-mult">x{comboMult}</b>}
+          </span>
           <span className="s-hit">✔ {hits}</span>
           <span className="s-miss">✘ {misses}</span>
         </div>
@@ -151,7 +176,9 @@ function GameHUD({
           </div>
           <div className="ghud-chest-slot">
             {chestHint && <span className="ghud-chest-tip">¡Muy pronto!</span>}
-            <TreasureChest onClick={() => setChestHint(true)} />
+            {/* onClick estable: con una lambda inline el memo del cofre no serviría
+                para nada (prop nueva en cada render del HUD). */}
+            <TreasureChest onClick={showChestHint} />
           </div>
         </div>
       </div>

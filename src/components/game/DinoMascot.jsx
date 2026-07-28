@@ -345,6 +345,10 @@ function DinoMascot({
   baseY = -0.55,
   rotation = [0, 0, 0],
   quality = 'high', // 'high' (héroe/resultado) | 'low' (acompañante del HUD)
+  /* Duerme el canvas (frameloop "demand"): sigue pintado, pero deja de dibujar 60
+     veces por segundo. Lo usa el acompañante del HUD mientras la partida está
+     pausada o terminada — no tiene sentido animar a T-Rexo sobre una imagen fija. */
+  sleeping = false,
   className = '',
 }) {
   const [failed, setFailed] = useState(false)
@@ -394,6 +398,9 @@ function DinoMascot({
         )}
         <Canvas
           flat
+          /* Solo se duerme cuando el modelo YA está en pantalla: en "demand" un canvas
+             que aún no ha cargado el GLB dependería de que llegue una invalidación. */
+          frameloop={sleeping && ready ? 'demand' : 'always'}
           camera={{ position: [0, cameraY, cameraDistance], fov: 30 }}
           dpr={low ? [1, 1.5] : [1, 2]}
           gl={{

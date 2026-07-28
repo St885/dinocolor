@@ -66,21 +66,24 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 .btn--primary:active { box-shadow: 0 3px 0 #0e8a4c, 0 8px 16px rgba(13, 140, 76, 0.4), var(--inset-hi); }
-/* Brillo que cruza el botón primario */
+/* Brillo que cruza el botón primario.
+   RENDIMIENTO: se anima `transform`, no `left`. Animar `left` obliga al navegador a
+   recalcular layout y repintar en CADA frame; `translateX` lo resuelve el compositor
+   sin tocar el layout. Es el mismo efecto por una fracción del coste. */
 .btn--primary::after {
   content: '';
   position: absolute;
   top: 0;
-  left: -60%;
+  left: 0;
   width: 45%;
   height: 100%;
   background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
-  transform: skewX(-18deg);
+  will-change: transform;
   animation: btn-shine 3.6s ease-in-out infinite;
 }
 @keyframes btn-shine {
-  0%, 70% { left: -60%; }
-  100% { left: 140%; }
+  0%, 70% { transform: translateX(-240%) skewX(-18deg); }
+  100% { transform: translateX(320%) skewX(-18deg); }
 }
 .btn--secondary {
   background: linear-gradient(180deg, #235541 0%, #163a2b 100%);
@@ -454,11 +457,12 @@
   margin-bottom: 6px;
 }
 
-/* Nombre del siguiente nivel bajo el botón Continuar: da contexto sin ocupar sitio */
+/* Nombre del siguiente nivel bajo el botón Continuar: da contexto sin ocupar sitio.
+   0.76rem quedaba por debajo del mínimo legible en móvil (≈12 px). */
 .menu-next-hint {
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  color: var(--c-ink-dim);
+  color: var(--c-ink-soft);
   text-align: center;
 }
 
@@ -527,17 +531,18 @@
   line-height: 1;
 }
 .level-card-name {
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--c-ink);
   line-height: 1.1;
 }
+/* 0.6rem eran ~9,6 px: ilegible en un móvil. Sube a ~11 px con más contraste. */
 .level-card-diff {
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  color: var(--c-ink-dim);
+  color: var(--c-ink-soft);
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
 }
 .level-card--media .level-card-num { color: var(--c-gold); }
 .level-card--dificil .level-card-num { color: var(--c-orange); }
@@ -700,13 +705,14 @@
   0%, 100% { transform: scale(1); }
   40% { transform: scale(1.14) translateY(-4px); }
 }
-/* Nombre del acompañante (identidad sutil) */
+/* Nombre del acompañante (identidad sutil).
+   0.52rem eran ~8,3 px: por debajo de cualquier mínimo legible en móvil. */
 .mini-dino2-label {
   position: absolute;
   top: -8px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.52rem;
+  font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 1.4px;
   text-transform: uppercase;
@@ -844,7 +850,7 @@
 .ghud-bottom { width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .ghud-stats {
   display: flex; align-items: center; gap: 8px;
-  font-weight: 800; font-size: 0.8rem;
+  font-weight: 800; font-size: 0.86rem;
 }
 .ghud-stats span {
   display: inline-flex; align-items: center; gap: 4px;
@@ -859,6 +865,18 @@
 .ghud-stats .s-combo.is-hot {
   color: var(--c-orange); border-color: rgba(255, 138, 61, 0.5);
   animation: combo-pulse 0.7s ease-in-out infinite;
+}
+/* Multiplicador REAL del combo. El chip mostraba "x4" con la racha, no con el
+   multiplicador (que en ese momento era x1.5): el jugador no podía relacionar su racha
+   con los puntos que cobraba. Ahora se ve la racha y, cuando hay bonus, el x de verdad. */
+.ghud-stats .s-combo-mult {
+  margin-left: 2px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--c-yellow), var(--c-orange));
+  color: #3d1e00;
+  font-size: 0.78em;
+  font-weight: 800;
 }
 @keyframes combo-pulse {
   50% { transform: scale(1.09); box-shadow: 0 0 13px rgba(255, 138, 61, 0.55); }
@@ -894,18 +912,26 @@
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 0 12px rgba(84, 255, 157, 0.5);
   transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* Brillo que recorre la barra: recuerda que se avanza hacia la meta */
+/* Brillo que recorre la barra: recuerda que se avanza hacia la meta.
+   RENDIMIENTO: animaba `left` de -34px a 100%, o sea layout + repaint en cada frame
+   ENCIMA del canvas WebGL, durante toda la partida. Con `transform` lo hace el
+   compositor y el efecto es idéntico. */
 .ghud-metabar > i::after {
   content: '';
   position: absolute;
   top: 0; bottom: 0;
+  left: 0;
   width: 34px;
   background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  will-change: transform;
   animation: meta-shine 2.4s ease-in-out infinite;
 }
+/* El recorrido es una distancia FIJA mayor que cualquier ancho de barra posible (el
+   marco tiene max-width 480px): `.ghud-metabar` tiene overflow:hidden y recorta lo que
+   sobra, así que no hace falta medir el ancho real en JS. */
 @keyframes meta-shine {
-  0%, 60% { left: -34px; }
-  100% { left: 100%; }
+  0%, 60% { transform: translateX(-34px); }
+  100% { transform: translateX(420px); }
 }
 
 /* Cofre (esquina inferior derecha del área de juego) */
@@ -917,7 +943,11 @@
   margin-bottom: 2px;
   display: grid; place-items: center;
   background: none; border: none; padding: 0;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 10px rgba(255, 178, 46, 0.25));
+  /* Un solo drop-shadow: eran DOS filtros encadenados sobre un elemento que además se
+     anima (chest-bob), así que el navegador rehacía las dos pasadas de desenfoque en
+     cada frame de la animación, por encima del canvas WebGL. El halo dorado ya lo pinta
+     el propio SVG (`chestGlow`), así que no se pierde nada. */
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
   animation: chest-bob 3s ease-in-out infinite;
   transition: transform 0.12s ease;
 }
@@ -958,22 +988,43 @@
 }
 .hud-popup--fast { color: var(--c-green); }
 .hud-popup--normal { color: var(--c-cyan); }
-.hud-popup--bad { color: var(--c-red); }
+/* "¡SE APAGÓ!" / "¡FALLASTE!" son más largos que "¡FALLO!": bajan de cuerpo para no
+   desbordar el ancho del marco en móviles estrechos. */
+.hud-popup--bad { color: var(--c-red); font-size: 1.32rem; }
+/* Multiplicador de combo pegado a los puntos: el bonus se cobra donde se mira. */
+.hud-popup-mult {
+  margin-left: 5px;
+  font-size: 0.66em;
+  font-weight: 800;
+  color: var(--c-yellow);
+  text-shadow: 0 0 10px rgba(255, 210, 63, 0.7);
+}
 @keyframes popup {
   0% { opacity: 0; transform: translate(-50%, 10px) scale(0.6); }
   22% { opacity: 1; transform: translate(-50%, -2px) scale(1.14); }
   100% { opacity: 0; transform: translate(-50%, -30px) scale(0.95); }
 }
 
-/* Destello de pantalla según evento */
+/* Destello de pantalla según evento.
+   RENDIMIENTO: usaba `box-shadow: inset 0 0 130px` sobre un elemento a pantalla
+   completa. Una sombra interior de 130 px de difuminado es de lo más caro que se puede
+   pintar, y se disparaba en CADA acierto y CADA fallo (varias veces por segundo en los
+   niveles con 4 pelotas) por encima del canvas WebGL. El mismo halo se consigue con un
+   degradado radial —que se pinta una vez— animando solo `opacity`, que el compositor
+   resuelve sin repintar nada. */
 .hud-flash {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  will-change: opacity;
   animation: flash 0.3s ease-out forwards;
 }
-.hud-flash--good { box-shadow: inset 0 0 130px rgba(84, 255, 157, 0.5); }
-.hud-flash--bad { box-shadow: inset 0 0 130px rgba(255, 107, 107, 0.55); }
+.hud-flash--good {
+  background: radial-gradient(120% 90% at 50% 50%, transparent 45%, rgba(84, 255, 157, 0.5) 100%);
+}
+.hud-flash--bad {
+  background: radial-gradient(120% 90% at 50% 50%, transparent 45%, rgba(255, 107, 107, 0.55) 100%);
+}
 @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
 
 /* ============================ Pausa ============================ */
@@ -1042,7 +1093,7 @@
 .pause-stat-label { font-size: 0.62rem; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--c-ink-dim); }
 .pause-stat strong { font-size: 1.25rem; font-weight: 800; color: var(--c-green); font-variant-numeric: tabular-nums; }
 .pause-stat strong i { font-size: 0.75rem; font-style: normal; color: var(--c-ink-dim); }
-.pause-hint { margin-top: 10px; font-size: 0.72rem; font-weight: 600; color: var(--c-ink-dim); text-align: center; }
+.pause-hint { margin-top: 10px; font-size: 0.8rem; font-weight: 600; color: var(--c-ink-soft); text-align: center; }
 
 /* ============================ Tutorial (nivel 1) ============================ */
 /* El juego lanzaba al jugador directamente a la partida: la única pista era una línea
@@ -1208,7 +1259,7 @@
   background: rgba(5, 18, 12, 0.5);
   border: 1px solid rgba(150, 255, 205, 0.1);
 }
-.result-cell span { font-size: 0.76rem; font-weight: 700; color: var(--c-ink-soft); }
+.result-cell span { font-size: 0.78rem; font-weight: 700; color: var(--c-ink-soft); }
 .result-cell strong { font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .stat-good { color: var(--c-green); }
 .stat-bad { color: var(--c-red); }

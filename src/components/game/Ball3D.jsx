@@ -111,11 +111,23 @@ function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap 
   const partRef = useRef()
   const part0 = useRef(0)
 
+  // Marca de "en reposo": una pelota apagada que ya terminó de apagarse no tiene nada
+  // que animar, pero seguía ejecutando su lerp de color, cuatro interpolaciones de
+  // opacidad y dos bucles de partículas 60 veces por segundo. En el tablero grande son
+  // NUEVE pelotas y, en los niveles fáciles, ocho de ellas están apagadas todo el rato.
+  // Cuando todo ha convergido, el callback sale en la primera línea.
+  const idleRef = useRef(false)
+
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime
     const mesh = meshRef.current
     const mat = matRef.current
     if (!mesh || !mat) return
+
+    if (!active && idleRef.current && pressRef.current <= 0 && burst0.current <= 0 && part0.current <= 0) {
+      return
+    }
+
     const k = Math.min(1, delta * 9)
     const wob = (Math.sin(t * 6) + 1) / 2
 
@@ -196,6 +208,20 @@ function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap 
       } else if (parts.visible) {
         parts.visible = false
       }
+    }
+
+    // ¿Ya ha convergido todo el apagado? Entonces se fija el estado EXACTO de reposo
+    // (los lerps son asintóticos: si nos limitáramos a dejar de animar, la pelota se
+    // quedaría con un tinte residual del color del nivel) y se marca para saltar los
+    // próximos frames. Cualquier activación o toque vuelve a despertarla.
+    if (!active && mat.emissiveIntensity < 0.004 && pressRef.current <= 0) {
+      mat.color.copy(IDLE_COLOR)
+      mat.emissive.copy(BLACK)
+      mat.emissiveIntensity = 0
+      mesh.scale.setScalar(radius)
+      idleRef.current = true
+    } else if (active) {
+      idleRef.current = false
     }
   })
 
