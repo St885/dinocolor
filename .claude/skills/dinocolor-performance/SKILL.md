@@ -41,6 +41,17 @@ Optimización de rendimiento de DinoColor **sin cambiar mecánica**. Asume `dino
 - [ ] Segmentos de geometría razonables (esferas 32×24, no 40×40) — invisible a ese tamaño.
 - [ ] `dpr={[1,2]}` en el Canvas; el segundo Canvas (mini T-Rexo) en `quality="low"` (sin antialias, DPR menor).
 - [ ] `backdrop-filter` limitado (cada uno es un pase de desenfoque por frame sobre WebGL).
+- [ ] **El canvas se duerme cuando no hay partida** (`frameloop="demand"` en pausa/tutorial/fin de nivel). Ojo: el canvas de la mascota solo debe dormirse cuando el modelo YA está en pantalla.
+- [ ] **Ninguna animación CSS infinita mueve `left`/`top`/`width`** (layout + repaint por frame sobre el canvas). Usa `transform`. Medido: `meta-shine` + `btn-shine` costaban **55 layouts / 6 s**; con `translateX`, **0**.
+- [ ] **Ningún `box-shadow` grande y animado a pantalla completa** (`.hud-flash` usaba `inset 0 0 130px` en cada acierto). Degradado radial + `opacity`.
+- [ ] `useFrame` con **salida temprana** cuando el objeto está en reposo — fijando antes el estado exacto (los lerps son asintóticos).
+
+### Cómo medir (sin instalar nada)
+
+`Performance.getMetrics` por CDP, comparando una ventana con el juego **en pausa** antes y después
+del cambio: al estar todo congelado, la ventana aísla el trabajo que el juego hace sin necesidad.
+`ScriptDuration` y `LayoutCount` son las dos cifras útiles. **No** capturan el coste de GPU, así que
+no conviertas un ahorro de CPU en una promesa de batería sin medirlo en un móvil real.
 
 **Git**
 - [ ] **`dist/` nunca** en Git. **`node_modules/` nunca** en Git. Verifícalo con `git ls-files`.

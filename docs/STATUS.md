@@ -2,9 +2,163 @@
 
 > Estado del proyecto. Actualizar al cerrar cada iteración.
 
-**Versión:** 0.3.0 — 42 niveles + reajuste de dificultad + hardening de seguridad
-**Fecha:** 2026-07-21
+**Versión:** 0.4.0 — estrellas, capítulos, tutorial y pulido de rendimiento
+**Fecha:** 2026-07-28
 **Stack:** React 18 + Vite 5 + Three.js + @react-three/fiber (JavaScript/JSX)
+
+---
+
+## 🌟 Iteración 2026-07-28 — Progresión, claridad y pulido
+
+Sin cambios de mecánica (sigue siendo "pulsa las pelotas activas antes de que se
+apaguen"), sin dependencias nuevas, sin tocar los 42 niveles ni el scoring base.
+Validado jugando en Chrome real con WebGL (390×844, build de producción con CSP).
+
+### 🎁 Sistema de estrellas (1–3 por nivel)
+
+El menú solo distinguía "superado / no superado" con una ⭐ decorativa: **ganar
+raspando y ganar de sobra se veían idénticos**, así que no había ninguna razón para
+volver a un nivel ya pasado. Ahora la puntuación final da estrellas:
+
+| Estrellas | Condición |
+|---|---|
+| ⭐ | superar la meta (si ganaste, nunca te quedas en cero) |
+| ⭐⭐ | ≥ 120 % de la meta |
+| ⭐⭐⭐ | ≥ 150 % de la meta |
+
+`computeStars` / `pointsToNextStar` son **puros** (`scoringSystem.js`) y no tocan la
+condición de victoria: ganar sigue siendo llegar a la meta. Se persisten en
+`dinocolor.stars` como **cadena de dígitos** (un carácter por nivel, 42 bytes) para no
+introducir `JSON.parse` y mantener el criterio de `docs/SECURITY.md`. Un valor corrupto
+degrada a 0 estrellas en ese nivel. El menú muestra el total (`⭐ 1/126`).
+
+### 📖 El selector de 42 niveles, por capítulos
+
+Se pintaban las 42 tarjetas de golpe: 14 filas, ~1.400 px de scroll, y una **pared de
+tarjetas bloqueadas** como primera impresión. Ahora hay 5 capítulos (los tramos que ya
+definía `levels.js`) en `src/data/chapters.js`, se muestra **uno a la vez** y el menú se
+abre en el capítulo donde va el jugador. Cabecera, récord y pestañas viven **fuera** del
+área con scroll, así que cambiar de tramo no obliga a volver arriba.
+
+`validateChapters` (en `levelValidation.js`, se ejecuta en dev junto a `validateLevels`)
+comprueba que los capítulos **cubren los 42 niveles sin huecos ni solapes**: un nivel
+fuera de todo capítulo sería invisible en el selector.
+
+### 🎓 Tutorial del nivel 1
+
+El juego lanzaba al jugador directamente a la partida; la única pista era una línea
+pequeña en la portada. Ahora el nivel 1 abre con 4 pasos (qué tocar, cuánto tiempo hay,
+cuál es la meta, para qué son las estrellas) **una sola vez**
+(`dinocolor.tutorialSeen`). Mientras está abierto la partida arranca **congelada**
+(`startPaused` en `useGameLoop`): leer no cuesta tiempo ni bolas.
+*Verificado: 0:32 → 0:32 tras 3 s con el tutorial abierto, 0 fallos acumulados.*
+
+### 🐛 Bugs corregidos
+
+| # | Sev | Bug | Dónde |
+|---|---|---|---|
+| 1 | Media | **T-Rexo se quedaba celebrando para siempre.** El efecto salía con `return undefined` si el evento no era un acierto, pero su cleanup (`clearTimeout`) corría igual: la secuencia acierto → fallo dejaba el temporizador cancelado con `cheer` en `true`, y el mini T-Rexo seguía dando saltos mientras el jugador fallaba, hasta el siguiente acierto. | `MiniDinoWalker` |
+| 2 | Media | **El chip 🏆 del HUD mostraba el récord GLOBAL.** Jugando el nivel 1 (meta 300) ponía "🏆 2050" (récord del nivel 42): una cifra imposible de batir que no orientaba nada. Ahora es el récord **de ese nivel** (`dinocolor.best.<id>`), y dice "Sin récord" si no lo hay. | `GameHUD`, `storageSystem` |
+| 3 | Media | **El chip de combo mentía.** Mostraba `🔥 x4` con la RACHA, no con el multiplicador (que en ese momento era ×1,5): parecía que cada acierto valía 4 veces más. Ahora se ve la racha y, al lado, el multiplicador real cuando está activo — y también viaja pegado a los puntos en el popup. | `GameHUD` |
+| 4 | Media | **El canvas 3D seguía dibujando a 60 fps con el juego congelado** (pausa, tutorial o nivel terminado), con el overlay de pausa añadiendo un `backdrop-filter` a pantalla completa encima. `frameloop="demand"` cuando no hay partida en curso. | `GameScene`, `DinoMascot` |
+| 5 | Baja | **Una tarjeta bloqueada no decía qué nivel era**: el 🔒 sustituía al número. Con las 42 en lista lo delataba la posición; dentro de un capítulo, no. El candado pasa a ser insignia de esquina. | `MenuScene` |
+| 6 | Baja | **Los dos fallos decían lo mismo** ("¡FALLO!"). Dejar apagarse una pelota no es el mismo error que pulsar una apagada → "¡SE APAGÓ!" / "¡FALLASTE!". | `GameHUD` |
+| 7 | Baja | Textos por debajo del mínimo legible en móvil: `.mini-dino2-label` 0,52 rem (~8 px), dificultad de nivel 0,6 rem (~10 px), pistas 0,72–0,76 rem. | `game.css` |
+| 8 | Baja | `ResultScene` recibía `soundEnabled` y no lo usaba nunca (prop muerta). | `App`, `ResultScene` |
+
+### 🎨 Mejoras visuales
+
+1. **Selector por capítulos** — 5–10 tarjetas por pantalla en vez de 42 seguidas.
+2. **Cuatro estados de nivel legibles**: bloqueado (número + 🔒, apagado), disponible
+   (anillo pulsante + etiqueta **AQUÍ**), completado (1–2 ⭐) y **perfecto** (3 ⭐ con
+   borde dorado, un estado que antes no existía).
+3. **Estrellas con entrada escalonada** en el resultado (caen una a una): la recompensa
+   se *siente*, no solo se informa.
+4. **Insignia RÉCORD** y **¡NUEVO!** cuando se batió algo, en la pantalla de resultado.
+5. **La derrota explica el margen** ("te faltaron 90") y **la victoria también**
+   ("superada por 25"): antes solo había una cifra desnuda.
+6. **Mensaje de T-Rexo según el rendimiento real** (precisión, fallos, récord, perfecto)
+   en vez de una frase fija. Va en el globo que ya existía: cero altura extra.
+7. **Gancho de estrellas**: "+35 puntos para la estrella 2 ⭐" y botón **Repetir** junto
+   a Menú cuando quedan estrellas — la primera razón real para rejugar un nivel.
+8. **Contraste y tamaños** subidos en HUD, tarjetas y pistas (ver bug 7).
+9. **Popup de puntos con el multiplicador** de combo pegado a la cifra.
+10. **Tutorial ilustrado**: el primer paso es una pelota encendida en miniatura que
+    late, no un texto que describe la pelota.
+
+### ⚡ Rendimiento (medido, no supuesto)
+
+Ventana de **6 s con el juego en PAUSA** (todo congelado, así que solo se mide el
+trabajo que el juego hace sin necesidad), `Performance.getMetrics`, antes vs. después:
+
+| Métrica | Antes | Después |
+|---|---|---|
+| ScriptDuration | 0,058 s | **0 s** |
+| LayoutCount | 55 | **0** |
+| RecalcStyleCount | 107 | **30** |
+
+1. **El canvas se duerme** (`frameloop="demand"`) en pausa, tutorial y fin de nivel —
+   es lo que lleva ScriptDuration a 0. El canvas del mini T-Rexo solo se duerme cuando
+   el modelo ya está en pantalla (en "demand" dependería de una invalidación).
+2. **`meta-shine` y `btn-shine` animaban `left`** → layout + repaint en cada frame,
+   encima del canvas WebGL, durante toda la partida. Con `transform: translateX` lo
+   resuelve el compositor: es el cambio que explica los **55 → 0 layouts** (un canvas
+   congelado no provoca layout).
+3. **`.hud-flash` usaba `box-shadow: inset 0 0 130px` a pantalla completa** en CADA
+   acierto y CADA fallo (varias veces por segundo con 4 pelotas). Ahora es un degradado
+   radial animando solo `opacity`.
+4. **`Ball3D` sale de `useFrame` en la primera línea** cuando la pelota está apagada y
+   quieta (fija antes el estado exacto de reposo, porque los lerps son asintóticos). En
+   los niveles fáciles ocho de las nueve pelotas están apagadas todo el rato.
+5. **`TreasureChest` memoizado** y con `onClick` estable: vive en el HUD, que se
+   re-renderiza con cada punto y cada segundo, y son ~25 nodos SVG con 5 gradientes.
+   Además pasa de dos `drop-shadow` encadenados a uno (el halo lo pinta ya el SVG).
+6. **El mini T-Rexo deja de pasear** con la partida pausada (además de verse mal).
+7. `dist/` sigue en **2,0 MB** y el único GLB descargado sigue siendo
+   `dino_color_mascot.glb` (0,9 MB). **Oliver no se ha tocado.**
+
+### ✅ Validaciones
+
+- `npm run build` **verde** (dist 2,0 MB). No hay script de lint/test en el proyecto.
+- **Lógica pura en Node** (`validateLevels`, `validateChapters`, `computeStars`,
+  `pointsToNextStar`, `comboMultiplier`): 42 niveles y 5 capítulos sin problemas, y los
+  umbrales de estrellas verificados en los 42 niveles reales + casos límite
+  (meta 0, derrota, tope en 3).
+- **Recorrido completo jugado en Chrome real con WebGL** (390×844, producción + CSP):
+  **40 de 41 comprobaciones OK**. Start → Menú (5 capítulos, 42 niveles accesibles) →
+  tutorial → nivel 1 ganado por un bot que localiza la pelota encendida → resultado con
+  ⭐ y RÉCORD → desbloqueo del nivel 2 con estrellas en la tarjeta → pausa/reanudar →
+  derrota por tiempo → `localStorage` corrupto.
+- **Sin scroll en la partida**, comprobado con un **swipe real de 300 px**: body 0,
+  marco 0, escena 0, HUD sin moverse. *(Nota: `scrollHeight - clientHeight` da 84 px
+  falsos porque `.app-frame::before` tiene `inset: -10%` y queda recortado por
+  `overflow: hidden`; y `el.scrollTop = 9999` también engaña, porque un contenedor con
+  `overflow: hidden` sí se puede desplazar por script. Solo el gesto es concluyente.)*
+- **0 errores de consola, 0 excepciones, 0 peticiones fallidas.**
+- `localStorage` corrupto (`maxLevel=9999`, `stars="XZ!!9999zzz"`,
+  `best.1="no-soy-un-numero"`): sin crash, progreso clampado a 42/42, estrellas a 0.
+
+### ⚠️ Conocido y NO regresión
+
+- **`THREE.WebGLRenderer: Context Lost`** aparece ~10 veces en un recorrido largo, al
+  desmontarse cada `<Canvas>` en los cambios de escena. **Medido en los dos builds con
+  el mismo recorrido: 10 antes y 10 después**, mismo patrón por fase y mismo número de
+  canvases. Es el `dispose()` normal de three.js (y sale por `console.log`, no por
+  `warn`, así que un filtro de error/warning no lo ve). No afecta al juego.
+
+### ⏳ Pendientes que deja esta iteración
+
+1. **Repintar los pesos de skinning de T-Rexo en Blender** (sigue vigente, ver
+   `docs/MASCOT_RIG_PLAN.md`). Es lo único que desbloquea `wave`/`celebrate`/`sad`.
+2. **Función real del cofre**: hoy solo responde "¡Muy pronto!". Las estrellas ya dan
+   una moneda natural para lo que sea que guarde.
+3. **Validación en dispositivo real** (Android gama media / iPhone). Todo lo medido aquí
+   es Chrome con SwiftShader: las cifras de CPU valen para comparar antes/después, pero
+   **no representan** el coste de GPU de un móvil real.
+4. Pantalla de ajustes (volumen, reiniciar progreso — `resetProgress` existe y ya limpia
+   estrellas y récords por nivel, pero ninguna pantalla lo llama).
+5. Tests automáticos de verdad: la lógica pura ya es testeable (`computeStars`,
+   `validateChapters`), pero no hay runner ni script `npm test`.
 
 ---
 

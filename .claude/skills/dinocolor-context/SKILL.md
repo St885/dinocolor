@@ -27,8 +27,9 @@ Contexto mínimo y reglas invariantes de DinoColor. Cárgalo al inicio de cualqu
 
 - Tablero 3D de pelotas ("canicas metálicas") sobre una losa; formas: `square3x3`, `cross`, `diamond` (+ extras).
 - La **pelota activa** se ilumina con el **color del nivel**: verde (`#39ff88`) en los primeros niveles, y cambia a cian/amarillo/naranja/rosa/morado según sube la dificultad. Lleva además un **anillo de foco** giratorio (legibilidad, también para daltonismo).
-- **12 niveles** progresivos en `src/data/levels.js` (única fuente de dificultad).
-- Pantallas: **StartScene → MenuScene → GameScene → ResultScene** (victoria/derrota) + **PauseOverlay** y **ErrorBoundary**.
+- **42 niveles** progresivos en `src/data/levels.js` (única fuente de dificultad), agrupados en **5 capítulos** para el menú (`src/data/chapters.js`). Ambos se autovalidan en dev (`levelValidation.js`).
+- **Estrellas 1–3 por nivel** según el margen sobre la meta (`computeStars` en `scoringSystem.js`). No cambian la condición de victoria. Se guardan como cadena de dígitos (sin `JSON.parse`).
+- Pantallas: **StartScene → MenuScene → GameScene → ResultScene** (victoria/derrota) + **TutorialOverlay** (nivel 1, una vez), **PauseOverlay** y **ErrorBoundary**.
 - Mascota: **T-Rexo** (`dino_color_mascot.glb`, 0,9 MB). Ver `dinocolor-mascot-3d` (hay reglas críticas de animación).
 
 ## Reglas de oro (invariantes — no las repitas en cada prompt, viven aquí)
@@ -45,6 +46,6 @@ Contexto mínimo y reglas invariantes de DinoColor. Cárgalo al inicio de cualqu
 
 ## Documentación viva del proyecto
 
-- `docs/STATUS.md` — estado por iteración (v0.2.0, revisión integral 2026-07-13).
+- `docs/STATUS.md` — estado por iteración (v0.4.0, iteración 2026-07-28).
 - `docs/TECHNICAL_NOTES.md` — decisiones y **trampas** (cronómetro en segundo plano, `clearedLevel` vs `maxLevel`, skinning de T-Rexo, luces, etc.). Léelo antes de tocar zonas delicadas.
 - `CLAUDE.md` (raíz del proyecto) — reglas detalladas y "no deshacer".

@@ -57,3 +57,23 @@ DinoColor usa WebGL; validar de verdad requiere navegador. Patrón usado en el p
 `npm run build` → servir `dist/` (p. ej. `vite preview`) → abrir con Chromium/Playwright **desde la caché global** (no como dependencia del proyecto) → recorrer Start→Menú→Juego→Pausa→Resultado (victoria y derrota) → capturar screenshots y contar errores de consola / requests fallidas. Guarda scripts temporales en el **scratchpad de la sesión**, nunca dentro del proyecto.
 
 > Regla anti-alucinación: si dices "arreglado" o "se ve bien", que sea porque lo **viste** en una captura o lo **mediste** (rects, overflow, requests), no por inferencia.
+
+## ⚠️ Cómo NO medir "no hay scroll en la partida"
+
+Dos métodos que dan **falsos positivos** en este proyecto (comprobado 2026-07-28):
+
+1. `scrollHeight - clientHeight` → devuelve **84 px** siempre, porque `.app-frame::before`
+   tiene `inset: -10%` (capa decorativa de blobs) y `overflow: hidden` la recorta. Nadie ve
+   ese "desbordamiento".
+2. `el.scrollTop = 9999` → un contenedor con `overflow: hidden` **sí** se puede desplazar por
+   script; solo el usuario no puede.
+
+Lo único concluyente es **hacer un swipe de verdad** (`Input.synthesizeScrollGesture` por CDP) y
+comprobar que nada se movió, incluido un testigo visual (p. ej. el rect de `.ghud-bottom`).
+
+## ⚠️ `Context Lost` no es un bug nuevo
+
+`THREE.WebGLRenderer: Context Lost.` sale ~10 veces en un recorrido largo: es el `dispose()` de
+three.js al desmontar cada `<Canvas>` en los cambios de escena. Medido igual antes y después de la
+iteración 2026-07-28. **Sale por `console.log`, no por `console.warn`**, así que un filtro de
+`error`/`warning` no lo ve — y si lo capturas, no lo persigas como regresión sin comparar builds.

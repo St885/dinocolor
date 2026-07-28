@@ -263,3 +263,83 @@ usar `clamp()` con `vh` y encoger a T-Rexo en pantallas bajitas en vez de recort
 - **`AudioContext` en try/catch** (`audioSystem.js`): crearlo puede lanzar en WebView
   restringidos; como se llama desde el handler de un botón (`unlock()`), sin el try/catch
   una excepción mataría ese click. Ante el fallo, el juego se queda sin audio, nunca roto.
+
+## Iteración 2026-07-28 (estrellas, capítulos, tutorial, rendimiento)
+
+- **Estrellas sin `JSON.parse`.** `dinocolor.stars` es una **cadena de dígitos**: el
+  carácter *i−1* son las estrellas del nivel *i* (`"3200…"`). 42 bytes, se lee carácter a
+  carácter y se sanea con `/^[0-3]$/`, así que un valor manipulado degrada a 0 estrellas
+  en ese nivel. Es deliberado: `docs/SECURITY.md` audita "0 `JSON.parse`" y serializar un
+  mapa lo habría reintroducido. El récord **por nivel** va en claves separadas
+  (`dinocolor.best.<id>`) por lo mismo.
+  > `resetProgress()` **descubre** las claves `dinocolor.best.*` recorriendo
+  > `localStorage` en vez de asumir cuántos niveles hay: `storageSystem` no conoce el
+  > catálogo de niveles y no debe empezar a conocerlo.
+
+- **Las estrellas NO tocan la condición de victoria.** `computeStars` deriva 1–3 ⭐ de la
+  puntuación final ya existente; ganar sigue siendo llegar a `targetScore`. Superar la
+  meta da **siempre** ≥ 1 ⭐ (si ganaste, no puedes quedarte a cero).
+
+- **⚠️ El efecto de "celebración" del mini T-Rexo: `return` vs `return cleanup`.** El
+  efecto de `MiniDinoWalker` salía con `return undefined` cuando el evento no era un
+  acierto, **pero el cleanup del efecto anterior se ejecuta igual**. Así que la secuencia
+  acierto → fallo cancelaba el `setTimeout` que apaga la celebración y dejaba `cheer` en
+  `true` para siempre (T-Rexo saltando de alegría mientras el jugador falla). El
+  temporizador se gestiona en una ref y **solo** se cancela al desmontar; cada acierto
+  reprograma su propio fin. Vigila este patrón en cualquier efecto con salida temprana.
+
+- **`startPaused` en `useGameLoop`.** El tutorial necesita que la partida arranque
+  congelada. Ojo: el efecto de reinicio (`[level.id]`) hacía `setPaused(false)`, o sea
+  que habría despausado justo después del primer render — lee de `startPausedRef`. Y
+  `resume()` pone la ref a `false` para que la partida no vuelva a arrancar pausada.
+
+- **`frameloop="demand"` para dormir el canvas.** En pausa/tutorial/fin de nivel no hay
+  nada que animar. Dos detalles: R3F pinta siempre el primer frame al montar (por eso el
+  tablero se ve aunque nazca dormido), pero el canvas de la **mascota** solo se duerme
+  cuando el modelo ya está listo (`sleeping && ready`) — dormido antes de que llegue el
+  GLB dependería de que alguna invalidación lo despertara.
+
+- **Animar `left` cuesta layout; `transform` no.** `meta-shine` y `btn-shine` movían
+  `left` en un bucle infinito **encima del canvas WebGL**. Medido con
+  `Performance.getMetrics` en 6 s de pausa: **55 layouts → 0** al pasar a
+  `translateX` (un canvas congelado no provoca layout, así que la ventana de pausa aísla
+  justo este coste). El recorrido de `meta-shine` es una distancia fija de 420 px mayor
+  que cualquier ancho de barra posible (el marco tiene `max-width: 480px`) y
+  `.ghud-metabar` lo recorta con `overflow: hidden`: no hace falta medir el ancho en JS.
+
+- **`box-shadow` grande y animado = repaint carísimo.** `.hud-flash` cubría la pantalla
+  con `box-shadow: inset 0 0 130px` y se disparaba en cada acierto y cada fallo. Un
+  degradado radial (se pinta una vez) animando solo `opacity` da el mismo halo.
+
+- **`Ball3D` con salida temprana en `useFrame`.** Como los lerps son **asintóticos**, no
+  basta con dejar de animar: hay que **fijar el estado exacto de reposo** (color, emisión,
+  escala) al converger, o la pelota se queda con un tinte residual del color del nivel.
+  La marca se limpia en cuanto la pelota se activa o se toca.
+
+- **`THREE.WebGLRenderer: Context Lost` es NORMAL aquí.** Sale ~10 veces en un recorrido
+  largo, al desmontarse cada `<Canvas>` en los cambios de escena (`dispose()` de
+  three.js). Comparado en los dos builds con el mismo recorrido: **10 antes, 10 después**.
+  Sale por `console.log`, **no** por `console.warn`: un validador que filtre solo
+  `error`/`warning` no lo verá. No lo persigas como si fuera un bug nuevo.
+
+- **⚠️ Cómo NO medir "no hay scroll en la partida".** Dos formas que dan falsos positivos:
+  1. `scrollHeight - clientHeight` → da **84 px** porque `.app-frame::before` tiene
+     `inset: -10%` (una capa decorativa de blobs) y `overflow: hidden` la recorta. Nadie
+     ve ese "desbordamiento".
+  2. `el.scrollTop = 9999` → un contenedor con `overflow: hidden` **sí** se puede
+     desplazar por script; solo el usuario no puede.
+
+  Lo único concluyente es **hacer un swipe de verdad** (`Input.synthesizeScrollGesture`)
+  y comprobar que nada se movió, incluido un testigo visual como `.ghud-bottom`.
+
+- **Los capítulos deben cubrir los 42 niveles.** El menú muestra un capítulo a la vez, así
+  que un nivel fuera de todo capítulo sería **invisible** en el selector (solo alcanzable
+  con "Continuar"). `validateChapters(LEVELS, CHAPTERS)` comprueba rangos contiguos, sin
+  huecos ni solapes, y corre en dev junto a `validateLevels`. Si cambias la curva de
+  niveles, actualiza `src/data/chapters.js`.
+
+- **El presupuesto vertical de `ResultScene` es real.** Esta pantalla ya se salió del
+  marco una vez (bug 7 de la revisión 2026-07-13). La fila de estrellas se pagó
+  encogiendo `.mascot--result` (`clamp(104px, 16vh, 148px)`) y el texto motivador va
+  **dentro del globo que ya existía** (cero altura extra). El botón "Repetir" comparte
+  fila con "Menú" en vez de añadir una tercera fila alta. Si añades algo aquí, quita algo.

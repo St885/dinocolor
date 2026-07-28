@@ -87,11 +87,28 @@ dinocolor/
 
 ## 📦 Estado del MVP
 
-✅ **MVP jugable y pulido** (v0.3.0). **42 niveles** progresivos · pantallas (inicio, menú, juego,
-**pausa**, resultado) · tablero 3D · timer · iluminación de pelotas · interacción táctil/click ·
-puntuación + combos · victoria/derrota · guardado local · sonidos sintetizados · **mascota 3D
-T-Rexo** (con fallback SVG y pantalla de error). `npm run build` **verde**, recorrido completo
-validado en navegador con WebGL: **0 errores de consola**.
+✅ **MVP jugable y pulido** (v0.4.0). **42 niveles** progresivos con **estrellas (1–3 por nivel)** ·
+pantallas (inicio, menú por capítulos, **tutorial**, juego, **pausa**, resultado) · tablero 3D ·
+timer · iluminación de pelotas · interacción táctil/click · puntuación + combos · victoria/derrota ·
+guardado local · sonidos sintetizados · **mascota 3D T-Rexo** (con fallback SVG y pantalla de
+error). `npm run build` **verde**, recorrido completo jugado en navegador con WebGL:
+**0 errores de consola**.
+
+**Iteración 2026-07-28** (progresión · claridad · rendimiento):
+
+- ⭐ **Estrellas 1–3 por nivel** según el margen sobre la meta, con contador global
+  (`⭐ 1/126`), insignia de nivel **perfecto** y "+35 puntos para la estrella 2" al terminar:
+  la primera razón real para rejugar un nivel ya superado.
+- 📖 **El selector de 42 niveles pasa a 5 capítulos** (uno a la vez, abierto donde va el
+  jugador) en vez de una pared de 14 filas y ~1.400 px de scroll.
+- 🎓 **Tutorial del nivel 1** (una sola vez) con la partida **congelada** mientras se lee:
+  leer no cuesta tiempo ni bolas.
+- 🐛 **8 bugs**, entre ellos: T-Rexo se quedaba celebrando para siempre tras un acierto
+  seguido de un fallo; el chip 🏆 mostraba el récord global (2050) jugando el nivel 1 (meta
+  300); y el chip de combo mostraba la racha (`x4`) como si fuera el multiplicador (×1,5).
+- ⚡ **Rendimiento medido** en 6 s de pausa: ScriptDuration 0,058 s → **0 s**, layouts
+  **55 → 0** (el canvas se duerme con `frameloop="demand"` y los brillos animan `transform`
+  en vez de `left`). `dist/` sigue en **2,0 MB**.
 
 **Iteración 2026-07-21** (niveles · dificultad · seguridad):
 
