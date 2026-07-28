@@ -34,7 +34,8 @@
  */
 
 import { BOARD_LAYOUTS } from './boardLayouts.js'
-import { validateLevels } from '../systems/levelValidation.js'
+import { CHAPTERS } from './chapters.js'
+import { validateLevels, validateChapters } from '../systems/levelValidation.js'
 
 export const LEVELS = [
   // ─────────────── 1–5 · Tutorial (fácil, verde) ───────────────
@@ -95,11 +96,16 @@ export const LEVELS = [
 // `import.meta.env?.DEV` es falsy en producción (código muerto que se elimina en el
 // build) y también en Node sin Vite, así que no rompe tests ni scripts de validación.
 if (import.meta.env?.DEV) {
-  const problems = validateLevels(LEVELS, BOARD_LAYOUTS)
+  const problems = [
+    ...validateLevels(LEVELS, BOARD_LAYOUTS),
+    // Los capítulos del menú deben cubrir los 42 niveles: uno que se quede fuera de
+    // todo capítulo sería invisible en el selector.
+    ...validateChapters(LEVELS, CHAPTERS),
+  ]
   if (problems.length) {
     console.warn(`[DinoColor] ${problems.length} problema(s) en los niveles:\n- ` + problems.join('\n- '))
   } else {
-    console.info(`[DinoColor] ${LEVELS.length} niveles validados correctamente ✓`)
+    console.info(`[DinoColor] ${LEVELS.length} niveles y ${CHAPTERS.length} capítulos validados correctamente ✓`)
   }
 }
 

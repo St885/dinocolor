@@ -106,4 +106,38 @@ export function validateLevels(levels, layouts) {
   return issues
 }
 
+/**
+ * Comprueba que los CAPÍTULOS del menú cubren todos los niveles sin huecos ni solapes.
+ * El menú muestra un capítulo a la vez, así que un nivel fuera de todo capítulo sería
+ * invisible e imposible de elegir (el jugador solo podría llegar a él con "Continuar").
+ *
+ * @param {Array} levels    array de niveles
+ * @param {Array} chapters  array de capítulos (src/data/chapters.js)
+ * @returns {string[]} problemas encontrados (vacío si todo válido)
+ */
+export function validateChapters(levels, chapters) {
+  const issues = []
+  if (!Array.isArray(chapters) || chapters.length === 0) return ['No hay capítulos definidos.']
+
+  chapters.forEach((c, i) => {
+    if (!(c.from <= c.to)) issues.push(`Capítulo "${c.id}": rango inválido (${c.from}–${c.to}).`)
+    const prev = chapters[i - 1]
+    if (prev && c.from !== prev.to + 1) {
+      issues.push(
+        `Capítulos "${prev.id}" y "${c.id}" no encajan: ${prev.to} → ${c.from} (debería ser ${prev.to + 1}).`,
+      )
+    }
+  })
+
+  levels.forEach((lvl) => {
+    const hits = chapters.filter((c) => lvl.id >= c.from && lvl.id <= c.to)
+    if (hits.length === 0) issues.push(`Nivel ${lvl.id} no pertenece a ningún capítulo.`)
+    if (hits.length > 1) {
+      issues.push(`Nivel ${lvl.id} pertenece a ${hits.length} capítulos a la vez.`)
+    }
+  })
+
+  return issues
+}
+
 export default validateLevels

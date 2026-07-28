@@ -53,7 +53,7 @@ const freshSim = () => ({
   pausedAt: null, // timestamp al pausar; sirve para re-anclar los plazos de las bolas
 })
 
-export function useGameLoop({ level, onFinish }) {
+export function useGameLoop({ level, onFinish, startPaused = false }) {
   // Memoizado por forma: mantiene una identidad estable del layout entre renders, así
   // Board3D no reconstruye su geometría (THREE.Shape) al cambiar la puntuación.
   const layout = useMemo(() => getLayout(level.layout), [level.layout])
@@ -63,7 +63,12 @@ export function useGameLoop({ level, onFinish }) {
 
   // --- Estado espejo para la UI ---
   const [status, setStatus] = useState('playing') // 'playing' | 'won' | 'lost'
-  const [paused, setPaused] = useState(false)
+
+  // `startPaused` arranca la partida CONGELADA (tablero apagado, cronómetro intacto).
+  // Lo usa el tutorial del nivel 1: sin esto el bucle hace su primer tick al montar y
+  // el jugador perdería tiempo y una bola mientras lee las instrucciones.
+  const [paused, setPaused] = useState(startPaused)
+  const startPausedRef = useRef(startPaused)
   const [activeIds, setActiveIds] = useState(() => new Set())
   const [score, setScore] = useState(0)
   const [combo, setCombo] = useState(0)
@@ -114,7 +119,7 @@ export function useGameLoop({ level, onFinish }) {
   useEffect(() => {
     sim.current = freshSim()
     setStatus('playing')
-    setPaused(false)
+    setPaused(startPausedRef.current)
     setLastEvent(null)
     sync()
     // Reaccionamos al id del nivel: cada nivel es una partida nueva.
@@ -248,6 +253,8 @@ export function useGameLoop({ level, onFinish }) {
   }, [])
   const resume = useCallback(() => {
     const s = sim.current
+    // Una vez el jugador ha reanudado, la partida ya no debe volver a arrancar pausada.
+    startPausedRef.current = false
     if (s.pausedAt != null) {
       const delta = Math.max(0, now() - s.pausedAt)
       for (const light of s.lights.values()) {

@@ -7,7 +7,7 @@
  * -----------------------------------------------------------------------------
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as Storage from '../systems/storageSystem.js'
 import { setEnabled as setAudioEnabled } from '../systems/audioSystem.js'
 import { totalLevels } from '../systems/levelSystem.js'
@@ -30,6 +30,13 @@ export function useLevelProgress() {
   const [soundEnabled, setSoundEnabledState] = useState(() =>
     Storage.getSoundEnabled(),
   )
+  const [tutorialSeen, setTutorialSeenState] = useState(() => Storage.getTutorialSeen())
+
+  // Las estrellas y los récords por nivel viven en storage, pero la UI necesita
+  // re-renderizarse cuando cambian. Un contador de "revisión" evita duplicar todo el
+  // mapa en estado de React: los lectores (`getStars`, `getLevelBest`) leen del storage
+  // y este número les da una identidad nueva cuando algo se ha guardado.
+  const [rev, setRev] = useState(0)
 
   // Mantener el motor de audio en sintonía con la preferencia guardada.
   useEffect(() => {
@@ -67,19 +74,61 @@ export function useLevelProgress() {
     })
   }, [])
 
+  /**
+   * Registra el resultado de una partida en las métricas POR NIVEL (récord y
+   * estrellas). Devuelve qué ha pasado para que la pantalla de resultado lo celebre:
+   * `{ isRecord, stars, previousStars }`.
+   */
+  const recordLevelResult = useCallback((levelId, score, stars) => {
+    const previousStars = Storage.getLevelStars(levelId)
+    const isRecord = Storage.setLevelBest(levelId, score)
+    Storage.setLevelStars(levelId, stars)
+    setRev((n) => n + 1)
+    return { isRecord, stars: Math.max(previousStars, stars), previousStars }
+  }, [])
+
+  const getStars = useCallback(
+    (levelId) => Storage.getLevelStars(levelId),
+    // `rev` no se usa dentro, pero cambia la identidad de la función cuando se guarda
+    // algo: así los componentes memoizados que la reciben vuelven a leer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rev],
+  )
+
+  const getLevelBest = useCallback(
+    (levelId) => Storage.getLevelBest(levelId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rev],
+  )
+
+  const markTutorialSeen = useCallback(() => {
+    Storage.setTutorialSeen()
+    setTutorialSeenState(true)
+  }, [])
+
   const isUnlocked = useCallback(
     (levelId) => levelId <= maxLevel,
     [maxLevel],
   )
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const totalStars = useMemo(() => Storage.getTotalStars(total), [rev, total])
 
   return {
     maxLevel,
     clearedLevel,
     bestScore,
     soundEnabled,
+    tutorialSeen,
+    totalStars,
+    maxStars: total * 3,
     unlockLevel,
     recordCleared,
     recordScore,
+    recordLevelResult,
+    getStars,
+    getLevelBest,
+    markTutorialSeen,
     toggleSound,
     isUnlocked,
   }

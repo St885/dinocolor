@@ -42,7 +42,7 @@ function GameHUD({
   combo,
   hits,
   misses,
-  bestScore = 0,
+  levelBest = 0,
   lastEvent,
   onPause,
 }) {
@@ -95,7 +95,12 @@ function GameHUD({
           <span className="ghud-chip ghud-level-num">
             <b>NIVEL</b> {levelId}
           </span>
-          <span className="ghud-chip ghud-best">🏆 {bestScore}</span>
+          {/* Récord DE ESTE NIVEL, no el global. El chip mostraba el récord absoluto
+              (p. ej. 2050 del nivel 42) mientras jugabas el nivel 1, cuya meta es 300:
+              una cifra imposible de batir que no orientaba nada. */}
+          <span className="ghud-chip ghud-best">
+            {levelBest > 0 ? `🏆 ${levelBest}` : '🏆 Sin récord'}
+          </span>
         </div>
       </div>
 

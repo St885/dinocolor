@@ -231,11 +231,12 @@
   gap: 16px;
   --mascot-size: clamp(176px, 30vh, 260px);
 }
-/* Variante "resultado": mismo encuadre, más compacta (aquí compite con el panel de
-   estadísticas y dos botones, así que cede altura primero). */
+/* Variante "resultado": mismo encuadre, más compacta (aquí compite con la fila de
+   estrellas, el panel de estadísticas y dos botones, así que cede altura primero).
+   Se encogió al añadir las estrellas para no volver a desbordar el marco. */
 .mascot--result {
-  gap: 10px;
-  --mascot-size: clamp(120px, 19vh, 168px);
+  gap: 8px;
+  --mascot-size: clamp(104px, 16vh, 148px);
 }
 .mascot--hero .mascot-canvas::before {
   inset: -24% -16% -8%;
@@ -346,18 +347,103 @@
   border-radius: 3px;
   background: linear-gradient(180deg, var(--c-green), var(--c-cyan));
   box-shadow: var(--glow-green);
+  flex-shrink: 0;
+}
+/* Rango del capítulo ("Niveles 13–22"): contexto sin robar jerarquía al título */
+.menu-subtitle em {
+  font-style: normal;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--c-ink-dim);
 }
 
-.menu-best { display: flex; flex-direction: column; gap: 12px; }
+/* ---- Navegación de capítulos ----
+   Sustituye a la pared de 42 tarjetas: cinco pestañas, un tramo visible a la vez.
+   Viven FUERA del área con scroll, así que cambiar de capítulo no mueve la vista. */
+.chapter-nav {
+  width: 100%;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 5px;
+  border-radius: var(--radius);
+  background: rgba(5, 20, 14, 0.55);
+  border: 1px solid var(--c-stroke);
+}
+.chapter-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  color: var(--c-ink-dim);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.chapter-tab-ico { font-size: 1.05rem; line-height: 1; }
+.chapter-tab-name {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.chapter-tab.is-active {
+  color: var(--c-ink);
+  background: linear-gradient(180deg, rgba(46, 104, 78, 0.9), rgba(20, 58, 41, 0.9));
+  border-color: var(--c-stroke-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 14px rgba(84, 255, 157, 0.22);
+}
+.chapter-tab.is-locked { opacity: 0.5; }
+.chapter-tab.is-locked.is-active { opacity: 0.8; }
+
+/* ---- Estrellas (menú y resultado) ----
+   Antes el menú solo tenía una ⭐ binaria de "superado": ganar raspando y ganar de
+   sobra se veían igual, así que no había ninguna razón para repetir un nivel. */
+.stars { display: inline-flex; align-items: center; gap: 2px; line-height: 1; }
+.stars .star {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.16);
+  text-shadow: none;
+  transition: color 0.2s ease;
+}
+.stars .star.is-on {
+  color: var(--c-gold);
+  text-shadow: 0 0 10px rgba(255, 178, 46, 0.6);
+}
+.stars--sm { font-size: 0.82rem; gap: 1px; }
+.stars--lg { font-size: 1.9rem; gap: 6px; }
+/* Entrada escalonada: las estrellas "caen" una a una (sensación de recompensa) */
+.stars--animated .star.is-on {
+  animation: star-drop 0.5s cubic-bezier(0.22, 1.5, 0.4, 1) both;
+}
+@keyframes star-drop {
+  0% { opacity: 0; transform: scale(0.3) rotate(-40deg); }
+  60% { opacity: 1; transform: scale(1.32) rotate(6deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.menu-best { display: flex; flex-direction: column; gap: 8px; }
 .best-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 .best-row span { display: flex; align-items: center; gap: 8px; color: var(--c-ink-soft); }
-.menu-best strong { color: var(--c-gold); font-size: 1.5rem; text-shadow: var(--glow-gold); }
+.menu-best strong { color: var(--c-gold); font-size: 1.4rem; text-shadow: var(--glow-gold); }
+/* Contador de estrellas: objetivo a largo plazo que sobrevive a "ya me pasé el juego" */
+.best-row--stars { font-size: 0.95rem; }
+.menu-stars-count { display: inline-flex; align-items: baseline; gap: 1px; }
+.menu-stars-count i {
+  font-style: normal;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--c-ink-dim);
+  text-shadow: none;
+}
 .menu-progress-row {
   display: flex;
   align-items: center;
@@ -467,19 +553,30 @@
   cursor: not-allowed;
 }
 .level-card--locked::before { opacity: 0.3; }
-.level-card--locked .level-card-num { color: var(--c-ink-dim); font-size: 1.35rem; }
+.level-card--locked .level-card-num { color: var(--c-ink-dim); }
 .level-card--locked .level-card-name,
 .level-card--locked .level-card-diff { color: var(--c-ink-dim); }
-
-/* Nivel completado: insignia de estrella */
-.level-card-badge {
+/* Candado como insignia en la esquina: el número del nivel sigue visible (antes el 🔒
+   lo SUSTITUÍA y no se sabía qué nivel era). */
+.level-card-lock {
   position: absolute;
   top: 6px;
   right: 7px;
-  font-size: 0.85rem;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  font-size: 0.7rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
-/* Nivel actual: anillo pulsante para invitar a jugar */
+
+/* Nivel PERFECTO (3 estrellas): borde dorado. Es el cuarto estado y necesitaba su
+   propia lectura — antes "completado con 1 ⭐" y "completado al 100 %" eran idénticos. */
+.level-card--perfect {
+  border-color: rgba(255, 178, 46, 0.6);
+  background: linear-gradient(180deg, rgba(76, 62, 24, 0.8), rgba(38, 44, 26, 0.78));
+  box-shadow: var(--shadow-sm), 0 0 0 1px rgba(255, 200, 90, 0.35), 0 0 18px rgba(255, 178, 46, 0.22);
+}
+.level-card--perfect .level-card-num { color: var(--c-gold); }
+
+/* Nivel actual: anillo pulsante + etiqueta "AQUÍ". El anillo solo ya se confundía con
+   el borde de un nivel completado en pantallas con poco brillo. */
 .level-card--current {
   border-color: var(--c-green);
   box-shadow: var(--shadow-sm), 0 0 0 2px rgba(84, 255, 157, 0.5), 0 0 22px rgba(84, 255, 157, 0.35);
@@ -487,6 +584,19 @@
 }
 @keyframes card-pulse {
   50% { box-shadow: var(--shadow-sm), 0 0 0 2px rgba(84, 255, 157, 0.85), 0 0 30px rgba(84, 255, 157, 0.55); }
+}
+.level-card-flag {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 1px 6px 2px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, #7cffbe, var(--c-green-deep));
+  color: #05301b;
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 /* Botón redondo "volver" (usado en el encabezado del menú) */
@@ -934,6 +1044,91 @@
 .pause-stat strong i { font-size: 0.75rem; font-style: normal; color: var(--c-ink-dim); }
 .pause-hint { margin-top: 10px; font-size: 0.72rem; font-weight: 600; color: var(--c-ink-dim); text-align: center; }
 
+/* ============================ Tutorial (nivel 1) ============================ */
+/* El juego lanzaba al jugador directamente a la partida: la única pista era una línea
+   pequeña en la portada. Mientras este overlay está abierto la partida está CONGELADA
+   (`startPaused` en useGameLoop), así que leer no cuesta tiempo ni bolas. */
+.tutorial-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(3, 12, 8, 0.8);
+  animation: scene-fade 0.22s ease both;
+}
+.tutorial-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 18px 16px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(24, 62, 46, 0.97), rgba(10, 30, 21, 0.97));
+  border: 1px solid var(--c-stroke-strong);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: pause-in 0.3s cubic-bezier(0.22, 1.4, 0.4, 1) both;
+}
+.tutorial-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--c-green);
+}
+.tutorial-title {
+  font-size: clamp(1.4rem, 6.5vw, 1.75rem);
+  font-weight: 800;
+  color: var(--c-ink);
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+.tutorial-steps {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 8px 0 12px;
+  list-style: none;
+  text-align: left;
+}
+.tutorial-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.32;
+  color: var(--c-ink-soft);
+}
+.tutorial-steps strong { color: var(--c-ink); font-weight: 800; }
+.tutorial-ico {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  background: rgba(5, 20, 14, 0.75);
+  border: 1px solid var(--c-stroke);
+}
+/* Primer paso: una "pelota encendida" en miniatura — enseña el objetivo, no lo cuenta */
+.tutorial-ico--tap {
+  background: radial-gradient(circle at 38% 34%, #b6ffd6, var(--c-green) 45%, var(--c-green-deep));
+  border-color: rgba(84, 255, 157, 0.7);
+  box-shadow: 0 0 14px rgba(84, 255, 157, 0.6);
+  animation: tut-tap 1.5s ease-in-out infinite;
+}
+@keyframes tut-tap {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 14px rgba(84, 255, 157, 0.6); }
+  50% { transform: scale(1.12); box-shadow: 0 0 22px rgba(84, 255, 157, 0.9); }
+}
+
 /* ============================ Error (ErrorBoundary) ============================ */
 /* Sin esto, cualquier excepción de React dejaba una PANTALLA EN BLANCO sin salida. */
 .scene--error {
@@ -1017,3 +1212,59 @@
 .result-cell strong { font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .stat-good { color: var(--c-green); }
 .stat-bad { color: var(--c-red); }
+
+/* ---- Recompensa: estrellas, récord y gancho para repetir ----
+   Antes esta pantalla solo daba una cifra: ganar raspando y ganar de sobra se veían
+   idénticos y nada explicaba POR QUÉ habías ganado o perdido. */
+.result-stars-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+.result-stars-new,
+.result-stars-best {
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.result-stars-new {
+  background: linear-gradient(180deg, #ffe89a, var(--c-gold));
+  color: #4a2c05;
+  box-shadow: var(--shadow-sm);
+  animation: bubble-pop 0.4s cubic-bezier(0.22, 1.4, 0.4, 1) 0.6s both;
+}
+.result-stars-best {
+  background: rgba(5, 18, 12, 0.6);
+  border: 1px solid var(--c-stroke);
+  color: var(--c-ink-dim);
+}
+/* Insignia de récord del nivel: el récord por nivel es nuevo, y batirlo se celebra */
+.result-record {
+  margin-left: 7px;
+  padding: 1px 7px 2px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, #ffe89a, var(--c-gold));
+  color: #4a2c05;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+}
+.result-score-label { display: inline-flex; align-items: center; }
+/* Puntos exactos que faltan para la siguiente estrella: el motivo para volver a jugar
+   un nivel que ya has superado (antes no existía ninguno). */
+.result-next-star {
+  margin-top: 2px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(150, 255, 205, 0.1);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--c-gold);
+  text-align: center;
+}
+/* Dos acciones secundarias en una fila: "repetir por estrellas" sin robar una fila
+   entera de alto a una pantalla que ya se salió del marco una vez. */
+.result-actions-row { display: flex; gap: 10px; }
+.result-actions-row .btn { flex: 1; }

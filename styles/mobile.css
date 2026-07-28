@@ -137,13 +137,15 @@
   gap: 12px;
 }
 
-/* Menú: el contenido hace scroll, pero las ACCIONES quedan ancladas abajo.
+/* Menú: cabecera, récord y capítulos quedan FIJOS; solo la rejilla de niveles hace
+   scroll, y las ACCIONES quedan ancladas abajo.
    Antes toda la escena era el área con scroll y el botón "Continuar" vivía dentro:
-   con 12 tarjetas de nivel, la acción principal del menú quedaba fuera de la vista y
-   había que descubrirla haciendo scroll. */
+   con las tarjetas de nivel en pantalla, la acción principal del menú quedaba fuera de
+   la vista y había que descubrirla haciendo scroll. Desde 2026-07-28 los selectores de
+   capítulo también viven fuera del scroll: cambiar de tramo no obliga a volver arriba. */
 .scene--menu {
   justify-content: flex-start;
-  gap: 0;
+  gap: 12px;
   overflow: hidden;
 }
 .menu-scroll {
@@ -153,7 +155,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;

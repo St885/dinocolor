@@ -66,3 +66,36 @@ export function wrongTapPenalty(level) {
 export function missPenalty() {
   return SCORING.MISS_PENALTY
 }
+
+// --- Estrellas ----------------------------------------------------------------
+//
+// Antes el menú solo distinguía "superado / no superado" (una ⭐ de adorno), así que
+// ganar raspando y ganar de sobra se veían idénticos: no había ninguna razón para
+// volver a un nivel ya pasado. Las estrellas dan ese motivo sin tocar la mecánica ni
+// las condiciones de victoria: se calculan a partir de la puntuación final, que ya
+// existía. Superar la meta SIEMPRE da al menos 1 estrella (si ganaste, no puedes
+// quedarte en cero); las otras dos premian el margen.
+
+/** Umbrales de estrella 2 y 3 como múltiplo de la meta del nivel. */
+export const STAR_THRESHOLDS = { two: 1.2, three: 1.5 }
+
+/**
+ * Estrellas conseguidas (0..3).
+ * @param {number} score        puntuación final
+ * @param {number} targetScore  meta del nivel
+ * @param {boolean} won         si se superó el nivel
+ */
+export function computeStars(score, targetScore, won) {
+  if (!won || !(targetScore > 0)) return 0
+  const ratio = score / targetScore
+  if (ratio >= STAR_THRESHOLDS.three) return 3
+  if (ratio >= STAR_THRESHOLDS.two) return 2
+  return 1
+}
+
+/** Puntos que faltan para la siguiente estrella (0 si ya tiene las 3). */
+export function pointsToNextStar(score, targetScore, stars) {
+  if (!(targetScore > 0) || stars >= 3) return 0
+  const need = stars === 0 ? targetScore : targetScore * (stars === 1 ? STAR_THRESHOLDS.two : STAR_THRESHOLDS.three)
+  return Math.max(0, Math.ceil(need - score))
+}

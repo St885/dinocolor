@@ -18,6 +18,7 @@ import GameScene from './scenes/GameScene.jsx'
 import ResultScene from './scenes/ResultScene.jsx'
 import useLevelProgress from './hooks/useLevelProgress.js'
 import { getFirstLevel, getLevelById, getNextLevel } from './systems/levelSystem.js'
+import { computeStars } from './systems/scoringSystem.js'
 
 export default function App() {
   const progress = useLevelProgress()
@@ -39,16 +40,29 @@ export default function App() {
 
   const handleFinish = useCallback(
     (result) => {
-      // El récord se guarda siempre; al ganar se marca el nivel como SUPERADO y se
-      // desbloquea el siguiente (si lo hay: el último nivel no tiene siguiente, por
+      const won = result.outcome === 'won'
+      // Las estrellas se derivan de la puntuación final (no cambian la condición de
+      // victoria: ganar sigue siendo llegar a la meta). Se calculan ANTES de guardar
+      // para poder contar en la pantalla de resultado si son nuevas.
+      const stars = computeStars(result.score, result.targetScore, won)
+      const levelResult = progress.recordLevelResult(result.levelId, result.score, stars)
+
+      // El récord global se guarda siempre; al ganar se marca el nivel como SUPERADO y
+      // se desbloquea el siguiente (si lo hay: el último nivel no tiene siguiente, por
       // eso "superado" se registra aparte de "desbloqueado").
       progress.recordScore(result.score)
-      if (result.outcome === 'won') {
+      if (won) {
         progress.recordCleared(result.levelId)
         const next = getNextLevel(result.levelId)
         if (next) progress.unlockLevel(next.id)
       }
-      setLastResult(result)
+      setLastResult({
+        ...result,
+        stars,
+        bestStars: levelResult.stars,
+        previousStars: levelResult.previousStars,
+        isRecord: levelResult.isRecord,
+      })
       setScene('result')
     },
     [progress],
@@ -81,6 +95,9 @@ export default function App() {
             clearedLevel={progress.clearedLevel}
             bestScore={progress.bestScore}
             isUnlocked={progress.isUnlocked}
+            getStars={progress.getStars}
+            totalStars={progress.totalStars}
+            maxStars={progress.maxStars}
             soundEnabled={progress.soundEnabled}
             onToggleSound={progress.toggleSound}
           />
@@ -90,7 +107,9 @@ export default function App() {
           <GameScene
             key={`level-${currentLevelId}-run-${runId}`}
             level={currentLevel}
-            bestScore={progress.bestScore}
+            levelBest={progress.getLevelBest(currentLevelId)}
+            showTutorial={currentLevel.id === getFirstLevel().id && !progress.tutorialSeen}
+            onTutorialDone={progress.markTutorialSeen}
             onFinish={handleFinish}
             onRestart={() => startLevel(currentLevelId)}
             onExit={() => setScene('menu')}
@@ -101,7 +120,6 @@ export default function App() {
           <ResultScene
             result={lastResult}
             hasNextLevel={getNextLevel(lastResult.levelId) !== null}
-            soundEnabled={progress.soundEnabled}
             onNext={handleNext}
             onRetry={() => startLevel(currentLevelId)}
             onMenu={() => setScene('menu')}

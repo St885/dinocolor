@@ -9,16 +9,35 @@
  * -----------------------------------------------------------------------------
  */
 
+import { useCallback, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import Background3D from '../components/game/Background3D.jsx'
 import Board3D from '../components/game/Board3D.jsx'
 import GameHUD from '../components/game/GameHUD.jsx'
 import MiniDinoWalker from '../components/game/MiniDinoWalker.jsx'
 import PauseOverlay from '../components/game/PauseOverlay.jsx'
+import TutorialOverlay from '../components/game/TutorialOverlay.jsx'
 import useGameLoop from '../hooks/useGameLoop.js'
 
-export default function GameScene({ level, bestScore = 0, onFinish, onRestart, onExit }) {
-  const game = useGameLoop({ level, onFinish })
+export default function GameScene({
+  level,
+  levelBest = 0,
+  showTutorial = false,
+  onTutorialDone,
+  onFinish,
+  onRestart,
+  onExit,
+}) {
+  // El estado inicial se congela al montar: cuando el jugador cierra el tutorial, la
+  // prop pasa a false, pero eso no debe reabrir/cerrar nada por su cuenta.
+  const [tutorial, setTutorial] = useState(() => showTutorial)
+  const game = useGameLoop({ level, onFinish, startPaused: showTutorial })
+
+  const closeTutorial = useCallback(() => {
+    setTutorial(false)
+    onTutorialDone && onTutorialDone()
+    game.resume()
+  }, [onTutorialDone, game])
 
   return (
     <div className="scene scene--game">
@@ -48,6 +67,7 @@ export default function GameScene({ level, bestScore = 0, onFinish, onRestart, o
 
       <GameHUD
         levelId={level.id}
+        levelName={level.name}
         timeLeft={game.timeLeft}
         timeProgress={game.timeProgress}
         score={game.score}
@@ -56,12 +76,14 @@ export default function GameScene({ level, bestScore = 0, onFinish, onRestart, o
         combo={game.combo}
         hits={game.hits}
         misses={game.misses}
-        bestScore={bestScore}
+        levelBest={levelBest}
         lastEvent={game.lastEvent}
         onPause={game.pause}
       />
 
-      {game.paused && (
+      {tutorial && <TutorialOverlay level={level} onStart={closeTutorial} />}
+
+      {game.paused && !tutorial && (
         <PauseOverlay
           levelId={level.id}
           levelName={level.name}
