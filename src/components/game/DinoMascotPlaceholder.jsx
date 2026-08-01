@@ -13,9 +13,13 @@
  * -----------------------------------------------------------------------------
  */
 
+import { MASCOT_NAME } from '../../data/mascot.js'
+
 export default function DinoMascotPlaceholder({ message, mood = 'happy', size = 150, className = '' }) {
   return (
-    <div className={`mascot ${className}`} style={{ '--mascot-size': `${size}px` }}>
+    // Mismo criterio que DinoMascot: el JS pone el respaldo (--mascot-size-base)
+    // y las clases mandan con --mascot-size. Ver la nota en game.css.
+    <div className={`mascot ${className}`} style={{ '--mascot-size-base': `${size}px` }}>
       {message && (
         <div className={`mascot-bubble mascot-bubble--${mood}`}>{message}</div>
       )}
@@ -25,7 +29,7 @@ export default function DinoMascotPlaceholder({ message, mood = 'happy', size = 
         height={size}
         viewBox="0 0 140 150"
         role="img"
-        aria-label="T-Rexo, la mascota de DinoColor"
+        aria-label={`${MASCOT_NAME}, la mascota de DinoColor`}
       >
         <defs>
           <linearGradient id="trexoBody" x1="0" y1="0" x2="0" y2="1">

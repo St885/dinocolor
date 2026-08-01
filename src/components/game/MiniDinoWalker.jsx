@@ -24,6 +24,7 @@
 
 import { memo, useEffect, useRef, useState } from 'react'
 import DinoMascot from './DinoMascot.jsx'
+import { MASCOT_NAME } from '../../data/mascot.js'
 
 const DRIFT_MS = 3400 // cada cuánto cambia de lado de la tarima
 const CHEER_MS = 1100 // celebración al acertar
@@ -77,15 +78,19 @@ function MiniDinoWalker({ lastEvent, size = 88, sleeping = false }) {
               size={size}
               quality="low"
               sleeping={sleeping}
-              targetHeight={1.02}
-              baseY={-0.52}
+              /* Con fov 30 a distancia 2.95 la altura visible es ≈1.58 (y ∈ ±0.79).
+                 El modelo v3 llena y ∈ [-0.62, 0.62]: aprovecha la tarima sin
+                 rozar los bordes. Antes ocupaba 1.02 y, siendo más estrecho que
+                 el modelo anterior, se leía como una manchita azul. */
+              targetHeight={1.24}
+              baseY={-0.62}
               cameraY={0.52}
               cameraDistance={2.95}
               className="mini-dino2-model"
             />
           </div>
         </div>
-        <span className="mini-dino2-label">T-Rexo</span>
+        <span className="mini-dino2-label">{MASCOT_NAME}</span>
       </div>
     </div>
   )

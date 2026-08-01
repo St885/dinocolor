@@ -165,14 +165,21 @@
   gap: 10px;
 }
 /* "Escenario" luminoso detrás de la mascota (foco emocional).
-   El TAMAÑO viene de --mascot-size (lo pone el JS por defecto), pero al vivir en CSS
-   una clase puede hacerlo responsive con clamp(). Antes el tamaño iba en un style
-   inline en píxeles fijos: en móviles bajos, el héroe de 256 px empujaba al logo y al
-   botón fuera del marco y el contenido se recortaba (no hay scroll en estas pantallas). */
+   El TAMAÑO sale de --mascot-size (lo ponen las clases, con clamp() responsive) y, si
+   ninguna clase lo define, de --mascot-size-base (el número que pasa el JS).
+
+   ⚠️ POR QUÉ SON DOS VARIABLES Y NO UNA (bug corregido el 2026-08-01):
+   el componente escribe su tamaño en un `style` INLINE del mismo elemento que lleva la
+   clase. Un estilo inline siempre gana a una clase, así que `--mascot-size: clamp(…)` de
+   `.mascot--hero` NUNCA llegaba a aplicarse: la mascota medía siempre los píxeles fijos
+   del JS y no se encogía en pantallas bajas — justo lo contrario de lo que decía el
+   comentario original. Con el JS escribiendo en `--mascot-size-base` y las clases en
+   `--mascot-size`, el clamp() vuelve a mandar y el número del JS queda de respaldo.
+   Comprobado midiendo el rect en 390×844 y 360×640: antes 272 px en ambas. */
 .mascot-canvas {
   position: relative;
-  width: var(--mascot-size);
-  height: var(--mascot-size);
+  width: var(--mascot-size, var(--mascot-size-base));
+  height: var(--mascot-size, var(--mascot-size-base));
   flex-shrink: 0;
   pointer-events: none;
   filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.45));
@@ -231,16 +238,20 @@
    hace que en pantallas bajitas el dino se ENCOJA en vez de recortarse él o recortar
    al resto de la pantalla. */
 .mascot--hero {
-  gap: 16px;
-  --mascot-size: clamp(176px, 30vh, 260px);
+  gap: 14px;
+  --mascot-size: clamp(184px, 33vh, 284px);
 }
 /* Variante "resultado": mismo encuadre, más compacta (aquí compite con la fila de
    estrellas, el panel de estadísticas y dos botones, así que cede altura primero).
    Se encogió al añadir las estrellas para no volver a desbordar el marco. */
 .mascot--result {
   gap: 8px;
-  --mascot-size: clamp(104px, 16vh, 148px);
+  --mascot-size: clamp(112px, 17vh, 158px);
 }
+
+/* (Los ajustes para pantallas bajas van al FINAL del archivo: una media query no
+   añade especificidad, así que puesta aquí la sobrescribirían las reglas base de
+   `.result-*`, que se declaran más abajo.) */
 .mascot--hero .mascot-canvas::before {
   inset: -24% -16% -8%;
   background:
@@ -1319,3 +1330,23 @@
    entera de alto a una pantalla que ya se salió del marco una vez. */
 .result-actions-row { display: flex; gap: 10px; }
 .result-actions-row .btn { flex: 1; }
+
+/* =============================================================================
+   Pantallas bajas (≈360×640) — al FINAL a propósito
+   Una @media no aporta especificidad: si estas reglas fueran antes que las
+   `.result-*` de arriba, perderían por orden de cascada y no harían nada.
+
+   La pantalla de resultado apila título, estrellas, mascota, panel de
+   estadísticas y dos botones grandes. Medido con CDP el 2026-08-01 en 360×640:
+   se salía 68 px del marco y el botón "Menú" nacía FUERA de la vista (solo
+   llegabas desplazándote). Se aprieta lo decorativo; los BOTONES no se tocan,
+   que son la razón de ser de la pantalla.
+   ========================================================================== */
+@media (max-height: 700px) {
+  .scene--result { gap: 7px; }
+  .mascot--result { --mascot-size: clamp(84px, 13vh, 110px); }
+  .result-title { font-size: clamp(1.5rem, 7vw, 1.9rem); }
+  .result-stats { padding: 11px 14px; gap: 8px; }
+  .result-score-value { font-size: 2rem; }
+  .result-cell { padding: 7px 9px; }
+}

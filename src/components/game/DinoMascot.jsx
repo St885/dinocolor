@@ -4,10 +4,18 @@
  * Mascota 3D de DinoColor. Widget DOM autocontenido (incluye su propio <Canvas>
  * y bocadillo). Reemplazo directo del placeholder SVG (misma API: message/mood/size).
  *
- * MODELO PRINCIPAL — T-Rexo: `dino_color_mascot.glb` (0,9 MB, 8 clips).
- *   Sus clips se llaman EXACTAMENTE como los estados que usa el juego
- *   (idle, wave, talk, celebrate, sad, point, surprised, dance), así que los estados
- *   de ánimo funcionan de verdad, sin resolución difusa ni sustituciones.
+ * MODELO PRINCIPAL — T-Rexo v3 (iteración 2026-08-01): `dino_color_mascot.glb`,
+ *   1,3 MB, 42.000 triángulos, SIN ESQUELETO Y SIN CLIPS. Ficha en
+ *   `src/data/mascot.js`; el porqué del cambio, en docs/TECHNICAL_NOTES.md.
+ *
+ *   Que no traiga clips NO deja a la mascota congelada: todo el lenguaje corporal
+ *   del juego (respirar, saludar, saltar de alegría, quedarse cabizbajo) se hace
+ *   con POSES de cuerpo entero en `MascotRig`, que mueven el modelo como un
+ *   objeto rígido. Ya era así antes: los clips del modelo anterior rompían la
+ *   malla y estaban desactivados salvo `idle` (ver SAFE_CLIPS más abajo).
+ *
+ *   Toda la maquinaria de clips se conserva intacta y probada: el día que haya un
+ *   modelo bien riggeado, basta con soltarlo y empieza a animarse solo.
  *
  * Historial (importante, no revertir sin medir):
  *   Se probaron los modelos "Oliver" como mascota principal y salió MUY caro:
@@ -29,6 +37,7 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import DinoMascotPlaceholder from './DinoMascotPlaceholder.jsx'
+import { MASCOT_NAME } from '../../data/mascot.js'
 
 const BASE = import.meta.env.BASE_URL
 const DINO_URL = `${BASE}assets/models/characters/dino-mascot/dino_color_mascot.glb`
@@ -383,14 +392,21 @@ function DinoMascot({
   const low = quality === 'low'
 
   return (
-    <div className={`mascot mascot--3d ${className}`} style={{ '--mascot-size': `${size}px` }}>
+    <div
+      className={`mascot mascot--3d ${className}`}
+      /* `--mascot-size-base`, no `--mascot-size`: un estilo inline gana a
+         cualquier clase del mismo elemento, así que escribir aquí la variable
+         final anulaba los clamp() responsive de `.mascot--hero`/`--result`/
+         `--auth`. Ver la nota en game.css → .mascot-canvas. */
+      style={{ '--mascot-size-base': `${size}px` }}
+    >
       {message && <div className={`mascot-bubble mascot-bubble--${mood}`}>{message}</div>}
       {/* El tamaño lo aplica el CSS a partir de --mascot-size, así una clase (p. ej.
           .mascot--hero) puede hacerlo responsive con clamp() sin tocar el JS. */}
       <div className={`mascot-canvas ${ready ? 'is-ready' : 'is-loading'}`}>
         {/* Indicador de carga: antes el hueco quedaba VACÍO hasta que llegaba el GLB. */}
         {!ready && (
-          <span className="mascot-loader" role="status" aria-label="Cargando a T-Rexo">
+          <span className="mascot-loader" role="status" aria-label={`Cargando a ${MASCOT_NAME}`}>
             <i />
             <i />
             <i />
@@ -409,12 +425,16 @@ function DinoMascot({
             powerPreference: low ? 'low-power' : 'high-performance',
           }}
         >
-          {/* Iluminación cartoon (NoToneMapping): clave cálida + relleno frío + contraluz. */}
-          <ambientLight intensity={0.72} />
+          {/* Iluminación cartoon (NoToneMapping): clave cálida + relleno frío + contraluz.
+              Recalibrada para el modelo v3: al tener TEXTURAS de verdad (el anterior
+              iba con materiales planos), el contraluz verde a 0.85 le teñía el vientre
+              y le apagaba el azul. Ahora el ambiente sube (levanta la sombra de la
+              barriga sin quemar nada) y el verde baja a puro remate de silueta. */}
+          <ambientLight intensity={0.88} />
           <hemisphereLight args={['#ffffff', '#0c2c20', 0.5]} />
-          <directionalLight position={[3, 5, 5]} intensity={1.55} color="#fff3df" />
-          <directionalLight position={[-4, 2, 1]} intensity={0.5} color="#bfe9ff" />
-          <directionalLight position={[0, 3.2, -5]} intensity={0.85} color="#54ff9d" />
+          <directionalLight position={[3, 5, 5]} intensity={1.45} color="#fff3df" />
+          <directionalLight position={[-4, 2, 1]} intensity={0.55} color="#bfe9ff" />
+          <directionalLight position={[0, 3.2, -5]} intensity={0.55} color="#54ff9d" />
 
           {/* Sombra de contacto bajo los pies (grounding premium) */}
           <mesh position={[0, baseY - 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>

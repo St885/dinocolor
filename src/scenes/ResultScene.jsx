@@ -107,8 +107,11 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
         })}
         mood={won ? 'cheer' : 'sad'}
         size={172}
-        targetHeight={1.15}
-        baseY={-0.58}
+        /* Mismo criterio de encuadre que StartScene (ver allí el cálculo): el
+           modelo v3 es más estrecho, así que a la altura antigua se veía pequeño
+           justo en la pantalla donde tiene que celebrar. */
+        targetHeight={1.32}
+        baseY={-0.66}
       />
 
       {/* Panel compacto: la puntuación manda arriba y el resto va en una rejilla de

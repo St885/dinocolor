@@ -89,10 +89,21 @@
    de resultado compacto), pero si un móvil raro se queda corto, es infinitamente mejor
    poder hacer scroll hasta el botón que quedarse sin él. */
 .scene--start,
+.scene--auth,
 .scene--result,
 .scene--error {
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* `safe center` — LA PIEZA QUE FALTABA (medido 2026-08-01 en 390×844).
+     Con `justify-content: center` (heredado de .scene) y contenido más alto que
+     el marco, flexbox reparte el desbordamiento a PARTES IGUALES arriba y abajo.
+     Lo de arriba queda fuera del área desplazable: el logo se cortaba y NO había
+     forma de llegar a él, ni con scroll. `safe` hace que, cuando no cabe, se
+     comporte como flex-start — todo el desbordamiento se va abajo, donde el
+     scroll sí lo alcanza. Los navegadores que no lo entiendan se quedan con la
+     declaración anterior (flex-start), que también es segura. */
+  justify-content: flex-start;
+  justify-content: safe center;
 }
 
 /* Entrada suave de escenas (fade + leve subida del contenido) */
