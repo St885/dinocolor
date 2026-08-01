@@ -18,6 +18,10 @@ Thumbs.db
 .env
 .env.*
 .env.local
+# ...pero la PLANTILLA sí se versiona: es la documentación de qué hay que
+# rellenar (ver docs/AUTH.md) y no contiene ningún valor. Sin esta excepción,
+# `.env.*` se la tragaba y nadie sabría qué variables necesita el proyecto.
+!.env.example
 
 # Cachés de build y herramientas (se regeneran)
 .vite/

@@ -343,3 +343,133 @@ usar `clamp()` con `vh` y encoger a T-Rexo en pantallas bajitas en vez de recort
   encogiendo `.mascot--result` (`clamp(104px, 16vh, 148px)`) y el texto motivador va
   **dentro del globo que ya existía** (cero altura extra). El botón "Repetir" comparte
   fila con "Menú" en vez de añadir una tercera fila alta. Si añades algo aquí, quita algo.
+
+---
+
+## Iteración 2026-08-01 (mascota v3 + acceso con cuenta)
+
+Dos frentes: **cambiar el modelo de la mascota** por uno bonito de verdad y
+**añadir acceso con cuenta**. Sin tocar mecánica, niveles ni scoring.
+
+### 🦕 T-Rexo v3 — de 20,5 MB a 1,3 MB
+
+El modelo nuevo (generado con Meshy) apareció en `public/` con **20,5 MB, 395.058
+triángulos y texturas 2048²**. Tal cual, `dist/` pasaba de 2,0 MB a ~22 MB: 10×
+por encima del límite de 5 MB del proyecto e inaceptable en móvil.
+
+Se optimizó con **Blender en modo background** (sin MCP, script de un solo uso):
+
+| | Antes | Después |
+|---|---|---|
+| Peso | 20,5 MB | **1,3 MB** (−94 %) |
+| Triángulos | 395.058 | **41.999** (decimate collapse, ratio 0,106) |
+| Base color | 2048² | 1024² |
+| Normal | 2048² | 1024² |
+| Metallic-roughness | 2048² | 512² |
+| Emisiva | 2048² (luma media 0,0005 → **negra**) | eliminada |
+| `doubleSided` | `true` | `false` (malla cerrada: ahorra la mitad del trabajo de fragmento) |
+
+Renderizado antes y después a tamaño de héroe: **indistinguible**. Las fuentes
+quedan en `assets/models/characters/dino-mascot/` (gitignored):
+`trexo_v3_meshy_source.glb` (original) y `trexo_v3_optimized.glb` (el que se sirve).
+
+**El modelo v3 NO tiene esqueleto ni clips de animación.** No es un problema: la
+expresividad del juego ya se hacía con **poses de cuerpo entero** (`MascotRig`),
+porque los clips del modelo anterior rompían la malla (ver `SAFE_CLIPS`). Toda la
+maquinaria de clips sigue en su sitio y probada: el día que haya un modelo bien
+riggeado, empieza a animarse sola. Ficha del modelo en `src/data/mascot.js`.
+
+### ⚠️ TRAMPA GORDA: la CSP dejaba la mascota GRIS (solo en producción)
+
+Con el modelo nuevo, el dinosaurio salía **gris, como una figura de barro**. Las
+texturas no cargaban:
+
+```
+THREE.GLTFLoader: Couldn't load texture blob:http://localhost:4173/…
+```
+
+Causa: GLTFLoader mete las texturas **embebidas** del GLB en un `Blob` y, cuando
+el navegador soporta `createImageBitmap` (todos los actuales), las carga con
+`ImageBitmapLoader`… que por dentro usa **`fetch()`**. Un `fetch` no lo gobierna
+`img-src` sino **`connect-src`**, y la política era `connect-src 'self'`.
+
+- **No se veía en `npm run dev`**: la CSP se inyecta solo en el build.
+- **No se veía antes**: el modelo anterior no tenía NINGUNA textura (`images: []`).
+- Poner `blob:` únicamente en `img-src` **no arregla nada**; hay que ponerlo
+  también en `connect-src` (medido: `fetch(blob:…)` → *Failed to fetch*).
+
+Ambas directivas lo llevan ahora: `img-src` cubre el camino `new Image()` de los
+navegadores sin `createImageBitmap`. Son blobs del propio documento; no habilitan
+ningún origen externo.
+
+> **Regla:** si algún día se embeben más binarios (texturas KTX2, audio, Draco),
+> comprueba la CSP **sobre el build servido**, no en `dev`.
+
+### 🐛 El `clamp()` responsive de la mascota nunca se aplicó
+
+`.mascot--hero { --mascot-size: clamp(176px, 30vh, 260px) }` era **código muerto**
+desde que se escribió. `DinoMascot` ponía `--mascot-size` en un `style` **inline**
+del **mismo elemento** que lleva la clase, y un estilo inline siempre gana. La
+mascota medía siempre los píxeles fijos del JS y **no se encogía en pantallas
+bajas** — exactamente lo contrario de lo que prometía el comentario.
+
+Medido: rect de 272 px tanto en 390×844 como en 360×640. Arreglo: el JS escribe
+en `--mascot-size-base` y las clases en `--mascot-size`;
+`.mascot-canvas` usa `var(--mascot-size, var(--mascot-size-base))`. Ahora en
+360×640 el héroe mide 211 px (33vh) y en 390×844, 279 px.
+
+### 🐛 `justify-content: center` + `overflow-y: auto` = contenido inalcanzable
+
+Cuando una escena desborda, flexbox con `justify-content: center` reparte el
+sobrante **a partes iguales arriba y abajo**. Lo de arriba queda **fuera del área
+desplazable**: el logo se cortaba y no había forma de llegar a él ni con scroll.
+
+Arreglo en `mobile.css`: `justify-content: flex-start` seguido de
+`justify-content: safe center`. Con `safe`, cuando no cabe se comporta como
+`flex-start` y todo el desbordamiento se va abajo, donde el scroll sí llega. Los
+navegadores que no entiendan `safe` se quedan con la declaración anterior, que
+también es segura. Aplicado a `.scene--start`, `--auth`, `--result` y `--error`.
+
+### Encuadre del modelo nuevo (los números no son a ojo)
+
+El modelo v3 es **más estrecho** que el anterior (0,56 de ancho por alto, frente a
+0,86), así que a igual altura se leía mucho más pequeño. Con `fov 30` a distancia
+2,8, la altura visible en `z=0` es `2·2.8·tan(15°) ≈ 1,50` → `y ∈ [-0,75, 0,75]`.
+Con `targetHeight 1.32` y `baseY -0.66` el modelo ocupa `y ∈ [-0,66, 0,66]`: 88 %
+del encuadre, con aire arriba y abajo. Mismo criterio en StartScene, ResultScene y
+el mini acompañante (que usa distancia 2,95 → `y ∈ ±0,79`, y ocupa `±0,62`).
+
+**Luces recalibradas:** con texturas de verdad, el contraluz verde a 0,85 le teñía
+el vientre y le apagaba el azul. Ahora ambiente 0,88 (levanta la sombra de la
+barriga) y verde a 0,55 (puro remate de silueta).
+
+### 🔐 Acceso con cuenta
+
+Documentado aparte y en detalle en **[`docs/AUTH.md`](AUTH.md)**. Lo esencial:
+
+- Única dependencia nueva: **`firebase`**, con `import()` **diferido** — no entra
+  en el bundle inicial (verificado: `index.html` no la precarga).
+- `src/systems/auth/` es una capa desacoplada; **solo `firebaseProvider.js`
+  importa `firebase`**. Cambiar de backend es reescribir ese archivo.
+- **El progreso NO se ata a la cuenta**: sigue en `localStorage` con las mismas
+  claves. Iniciar o cerrar sesión no lo toca (el porqué, en AUTH.md §3).
+- **Modo invitado siempre disponible**: la puerta de acceso nunca bloquea.
+- La CSP se **calcula** según haya o no `.env` (`buildCsp` en `vite.config.js`):
+  sin configuración, queda igual de estricta que antes.
+
+### Validado en navegador (Chrome real con WebGL, por CDP)
+
+Recorrido completo Inicio → Acceso → Registro → Menú → Juego → Resultado en
+**390×844** y **360×640**, con la build de producción y su CSP:
+
+- **0 errores de consola**, **0 peticiones fallidas**.
+- **0 desbordes** del marco en las cinco pantallas y en ambos tamaños.
+- Validación de formularios comprobada de verdad (correo inválido, contraseña
+  corta, campos vacíos, mensaje de "no configurado").
+- Perfil de invitado persistido correctamente; progreso del juego intacto.
+- `Context Lost` sale 3–5 veces por recorrido: es el `dispose()` de three.js al
+  desmontar cada `<Canvas>`. **No es una regresión** (ver `dinocolor-qa-visual`).
+
+> Aviso para quien valide con CDP: `scrollIntoView` puede desplazar `.app-frame`
+> **aunque tenga `overflow: hidden`**, y entonces todos los rects salen negativos
+> como si estuviera recortado por arriba. Devuelve el scroll a cero antes de medir.

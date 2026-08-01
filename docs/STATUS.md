@@ -2,9 +2,65 @@
 
 > Estado del proyecto. Actualizar al cerrar cada iteración.
 
-**Versión:** 0.4.0 — estrellas, capítulos, tutorial y pulido de rendimiento
-**Fecha:** 2026-07-28
-**Stack:** React 18 + Vite 5 + Three.js + @react-three/fiber (JavaScript/JSX)
+**Versión:** 0.5.0 — mascota T-Rexo v3 y acceso con cuenta
+**Fecha:** 2026-08-01
+**Stack:** React 18 + Vite 5 + Three.js + @react-three/fiber (JavaScript/JSX) + Firebase Auth (carga diferida)
+
+---
+
+## 🦕🔐 Iteración 2026-08-01 — Mascota nueva y acceso con cuenta
+
+Sin cambios de mecánica, de niveles ni de scoring. Dos objetivos:
+
+### 1. T-Rexo v3: el dinosaurio bonito, pero que quepa en un móvil
+
+El modelo nuevo (Meshy) llegó con **20,5 MB y 395.058 triángulos**: habría llevado
+`dist/` de 2,0 MB a ~22 MB. Optimizado con Blender en modo background a
+**1,3 MB y 41.999 triángulos**, con texturas a 1024/512 y la emisiva (negra)
+eliminada. Renderizado antes/después: **indistinguible** a tamaño de héroe.
+
+Conectado en **StartScene**, **ResultScene** y el **mini acompañante** de la
+partida, con el encuadre recalculado (el modelo v3 es más estrecho, así que a
+igual altura se veía pequeño) y las luces recalibradas para textura real.
+
+> El modelo v3 **no tiene esqueleto**: la expresividad sigue viniendo de las poses
+> de cuerpo entero, igual que antes. Ver `docs/TECHNICAL_NOTES.md`.
+
+El nombre visible de la mascota ahora vive en **un solo sitio**
+(`src/data/mascot.js` → `MASCOT_NAME`), no repartido por seis archivos.
+
+### 2. Acceso con cuenta: Google, Apple, correo e invitado
+
+Pantalla de acceso nueva entre la portada y el menú, con capa de autenticación
+desacoplada (`src/systems/auth/`). **Está terminada y validada; falta la
+configuración externa** (proyecto de Firebase) — sin ella el juego arranca igual,
+lo dice con un aviso claro y el modo invitado funciona.
+
+- **La puerta no bloquea**: "Seguir como invitado" siempre visible.
+- **El progreso no se ata a la cuenta**: niveles, récords y estrellas siguen en
+  `localStorage`, intactos. El porqué, en `docs/AUTH.md` §3.
+- Única dependencia nueva: `firebase`, con **carga diferida** (no entra en el
+  bundle inicial).
+- Guía completa de activación (incluida la de Apple, que necesita cuenta de pago):
+  **`docs/AUTH.md`**.
+
+### Bugs encontrados y corregidos por el camino
+
+| Bug | Efecto | Estado |
+|---|---|---|
+| CSP bloqueaba las texturas del GLB (`connect-src` sin `blob:`) | **La mascota salía GRIS** — solo en producción | ✅ |
+| El `clamp()` responsive de la mascota nunca se aplicaba (inline gana a la clase) | No se encogía en pantallas bajas | ✅ |
+| `justify-content: center` + overflow dejaba el logo cortado e inalcanzable | Contenido perdido sin scroll posible | ✅ |
+| La pantalla de acceso se salía 138 px en 360×640 | "Seguir como invitado" fuera de pantalla | ✅ |
+| ResultScene se salía 68 px en 360×640 (previo a esta iteración) | El botón "Menú" nacía fuera de la vista | ✅ |
+| "Crear cuenta" / "Iniciar sesión" desactivados sin `.env` | El formulario era inalcanzable | ✅ |
+
+### Validación
+
+`npm run build` **verde**. `dist/` = **2,6 MB** (antes 2,1 MB: +0,37 MB del modelo
+con texturas, +0,25 MB de Firebase en chunks diferidos). Ningún GLB > 5 MB.
+Recorrido completo en Chrome real con WebGL (390×844 y 360×640, build de
+producción con CSP): **0 errores de consola, 0 peticiones fallidas, 0 desbordes**.
 
 ---
 

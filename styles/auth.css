@@ -1,0 +1,454 @@
+/* =============================================================================
+   auth.css — pantalla de acceso (Google / Apple / correo / invitado)
+
+   Reutiliza los tokens de global.css y el lenguaje visual de game.css (cristal
+   verde, botones con volumen, radios grandes). Lo único que NO sigue la paleta
+   son los botones de proveedor: Google y Apple exigen sus colores de marca, y
+   además ese contraste blanco/negro es lo que los hace reconocibles de un
+   vistazo entre tanto verde.
+
+   Mobile-first: la pantalla cabe en 360×640 sin scroll en el modo "elegir", y
+   en los formularios el scroll está permitido por si se abre el teclado.
+   ========================================================================== */
+
+/* El scroll de seguridad y el `justify-content: safe center` los pone mobile.css
+   junto al resto de escenas que pueden desbordar. Aquí solo el ritmo y el fondo.
+   El `gap` es más apretado que en las demás pantallas porque esta apila siete
+   bloques (marca, mascota, aviso, proveedores, separador, correo, pie) y en
+   390×844 se salía 27 px por abajo. */
+.scene--auth {
+  gap: clamp(8px, 1.7vh, 15px);
+  background:
+    radial-gradient(90% 30% at 72% -6%, rgba(255, 214, 130, 0.1), transparent 60%),
+    radial-gradient(130% 55% at 50% -10%, rgba(84, 255, 157, 0.1), transparent 55%),
+    radial-gradient(60% 13% at 10% 102%, rgba(12, 48, 32, 0.9), transparent 72%),
+    radial-gradient(55% 11% at 90% 102%, rgba(10, 42, 28, 0.85), transparent 72%);
+  animation: scene-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ============================ Cabecera ============================ */
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+/* Logo reducido: aquí la protagonista es la acción, no la marca (que el jugador
+   acaba de ver a pantalla completa en StartScene). */
+.logo--sm {
+  font-size: clamp(2rem, 9vw, 2.6rem);
+}
+.auth-subtitle {
+  color: var(--c-ink-soft);
+  font-size: clamp(0.88rem, 3.6vw, 1rem);
+  font-weight: 600;
+  max-width: 30ch;
+  line-height: 1.3;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Mascota de esta pantalla: entre el héroe de inicio y la de resultado. Es la
+   primera que cede altura cuando la pantalla va justa — antes que ningún botón. */
+.mascot--auth {
+  gap: 6px;
+  --mascot-size: clamp(100px, 15vh, 136px);
+}
+
+/* ============================ Avisos ============================ */
+.auth-notice {
+  width: 100%;
+  max-width: 360px;
+  flex-shrink: 0;
+  padding: 9px 13px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.auth-notice--warn {
+  background: rgba(255, 178, 46, 0.12);
+  border-color: rgba(255, 178, 46, 0.4);
+  color: #ffdca0;
+}
+.auth-notice--error {
+  background: rgba(255, 107, 107, 0.14);
+  border-color: rgba(255, 107, 107, 0.45);
+  color: #ffc9c9;
+  animation: auth-shake 0.32s ease;
+}
+.auth-notice--ok {
+  background: rgba(84, 255, 157, 0.12);
+  border-color: rgba(84, 255, 157, 0.4);
+  color: #b9ffd8;
+}
+@keyframes auth-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* ============================ Panel ============================ */
+.auth-panel {
+  width: 100%;
+  max-width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.auth-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- Botones de proveedor (colores de marca, no la paleta del juego) ---- */
+.provider-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px; /* objetivo táctil cómodo en móvil */
+  padding: 13px 18px;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: clamp(0.98rem, 4vw, 1.08rem);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.provider-btn:active:not(:disabled) { transform: translateY(2px); }
+.provider-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.provider-btn--google {
+  background: #ffffff;
+  color: #1f1f1f;
+  box-shadow: 0 5px 0 #c8cdd2, 0 10px 20px rgba(0, 0, 0, 0.35);
+}
+.provider-btn--google:active:not(:disabled) { box-shadow: 0 2px 0 #c8cdd2, 0 6px 12px rgba(0, 0, 0, 0.3); }
+.provider-btn--apple {
+  background: #000000;
+  color: #ffffff;
+  box-shadow: 0 5px 0 #2b2b2b, 0 10px 20px rgba(0, 0, 0, 0.42);
+}
+.provider-btn--apple:active:not(:disabled) { box-shadow: 0 2px 0 #2b2b2b, 0 6px 12px rgba(0, 0, 0, 0.35); }
+
+.provider-btn-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.provider-logo { width: 100%; height: 100%; }
+.provider-btn-label { line-height: 1; }
+
+.provider-spinner {
+  position: absolute;
+  right: 16px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: auth-spin 0.7s linear infinite;
+}
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+
+/* ---- Separador ---- */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--c-ink-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--c-stroke);
+}
+
+.auth-email-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* ============================ Formulario ============================ */
+.auth-form { gap: 14px; }
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+}
+.auth-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  padding-left: 4px;
+}
+.auth-input-wrap {
+  position: relative;
+  display: block;
+}
+.auth-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 13px 16px;
+  border-radius: var(--radius);
+  font-family: inherit;
+  /* 16px es el mínimo que evita que iOS haga zoom automático al enfocar el
+     campo — un zoom que descoloca todo el marco del juego y del que el usuario
+     no sabe salir. No bajar de aquí. */
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--c-ink);
+  background: linear-gradient(180deg, rgba(6, 24, 17, 0.8), rgba(12, 36, 26, 0.7));
+  border: 1.5px solid var(--c-stroke);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.auth-input::placeholder { color: rgba(169, 204, 189, 0.55); font-weight: 500; }
+.auth-input:focus {
+  outline: none;
+  border-color: var(--c-green);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(84, 255, 157, 0.2);
+}
+.auth-input:disabled { opacity: 0.6; }
+.auth-input.is-invalid {
+  border-color: var(--c-red);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(255, 107, 107, 0.18);
+}
+/* El campo de contraseña reserva sitio para el ojo: sin esto el texto pasa por
+   debajo del botón y deja de leerse al final. */
+.auth-input-wrap .auth-input { padding-right: 52px; }
+.auth-eye {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 1.05rem;
+  display: grid;
+  place-items: center;
+  opacity: 0.85;
+}
+.auth-eye:active { transform: translateY(-50%) scale(0.92); }
+
+.auth-error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 4px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #ff9d9d;
+  line-height: 1.25;
+}
+.auth-error::before { content: '⚠'; }
+
+/* Medidor de fuerza de la contraseña */
+.auth-strength {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.auth-strength i {
+  width: 26px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.14);
+}
+.auth-strength b { margin-left: 4px; font-weight: 700; }
+.auth-strength--1 i:nth-child(1) { background: var(--c-orange); }
+.auth-strength--1 b { color: var(--c-orange); }
+.auth-strength--2 i:nth-child(-n + 2) { background: var(--c-yellow); }
+.auth-strength--2 b { color: var(--c-yellow); }
+.auth-strength--3 i { background: var(--c-green); }
+.auth-strength--3 b { color: var(--c-green); }
+
+.auth-submit { margin-top: 2px; }
+
+.auth-switch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.auth-switch button {
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--c-ink-dim);
+  padding: 6px 8px;
+}
+.auth-switch button b { color: var(--c-green); font-weight: 800; }
+.auth-switch button:disabled { opacity: 0.5; }
+.auth-link-soft { font-size: 0.85rem !important; text-decoration: underline; opacity: 0.8; }
+
+/* ============================ Pie ============================ */
+.auth-bottom {
+  width: 100%;
+  max-width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+/* "Seguir como invitado" es deliberadamente visible y grande: es la salida que
+   impide que la pantalla de acceso se convierta en un muro. */
+.auth-guest {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--c-ink-soft);
+  padding: 11px 20px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--c-stroke);
+  background: rgba(255, 255, 255, 0.05);
+  min-height: 46px;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+.auth-guest:active:not(:disabled) { transform: translateY(1px); background: rgba(255, 255, 255, 0.09); }
+.auth-guest:disabled { opacity: 0.5; }
+
+.auth-legal {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--c-ink-dim);
+  opacity: 0.75;
+  max-width: 34ch;
+  line-height: 1.3;
+}
+
+/* ============================ Sesión en el menú ============================ */
+/* Chip con el jugador conectado, en la cabecera del menú. */
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 6px 12px 6px 6px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--c-panel-2), var(--c-panel));
+  border: 1px solid var(--c-stroke);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--c-ink-soft);
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--c-green), var(--c-green-deep));
+  color: #06351d;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12ch;
+}
+.account-chip--guest .account-avatar {
+  background: linear-gradient(180deg, #3d6b56, #22493a);
+  color: var(--c-ink-soft);
+}
+.account-chip--confirm { padding: 6px 8px 6px 12px; gap: 8px; }
+.account-chip--confirm .account-name { max-width: none; color: var(--c-ink); }
+.account-yes,
+.account-no {
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  min-height: 30px;
+}
+.account-yes { background: var(--c-red); color: #3a0d0d; }
+.account-no { background: rgba(255, 255, 255, 0.1); color: var(--c-ink-soft); }
+
+.menu-account {
+  width: 100%;
+  max-width: 384px;
+  display: flex;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+/* ============================ Arranque de sesión ============================ */
+/* Se ve solo el instante en que Firebase resuelve si había sesión guardada. */
+.scene--auth-loading {
+  justify-content: center;
+  gap: 18px;
+}
+.auth-boot {
+  display: flex;
+  gap: 8px;
+}
+.auth-boot i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c-green);
+  box-shadow: var(--glow-green);
+  animation: mascot-load 0.9s ease-in-out infinite;
+}
+.auth-boot i:nth-child(2) { animation-delay: 0.13s; }
+.auth-boot i:nth-child(3) { animation-delay: 0.26s; }
+
+/* Pantallas bajas (360×640 y similares): la pantalla de acceso apila siete bloques
+   y no cabe. Se recorta por ORDEN DE PRESCINDIBILIDAD, nunca los botones.
+   Medido en 360×640: sobraban 138 px y "Seguir como invitado" quedaba FUERA de
+   la pantalla — el jugador tenía que adivinar que había que desplazarse para
+   encontrar la única salida que no requiere cuenta. */
+@media (max-height: 700px) {
+  .scene--auth { gap: 7px; }
+  /* La mascota es lo primero que se va (≈175 px entre globo y canvas). No se
+     pierde nada de personalidad: el jugador acaba de verla a pantalla completa
+     en la portada, un toque antes. */
+  .mascot--auth { display: none; }
+  .auth-legal { display: none; }
+  .auth-subtitle { font-size: 0.84rem; }
+  .auth-notice { padding: 7px 11px; font-size: 0.8rem; }
+  .provider-btn { min-height: 48px; padding: 10px 16px; }
+  .auth-divider { font-size: 0.8rem; }
+
+  /* El formulario de REGISTRO es el peor caso: tres campos, sus errores, el botón
+     de enviar y el enlace de vuelta. Medido en 360×640: se salía 23 px y el botón
+     "← Otros métodos" quedaba fuera. Se aprieta el interlineado, NUNCA el
+     `font-size: 16px` de los inputs (por debajo, iOS hace zoom al enfocar y
+     descoloca el marco entero). */
+  .auth-form { gap: 10px; }
+  .auth-input { min-height: 48px; padding: 11px 15px; }
+  .auth-input-wrap .auth-input { padding-right: 50px; }
+  .auth-label { font-size: 0.8rem; }
+  .auth-switch { gap: 4px; }
+  .auth-switch button { padding: 4px 8px; }
+}

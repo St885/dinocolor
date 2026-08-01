@@ -1,8 +1,24 @@
 # DinoColor — Seguridad
 
-> Revisión de seguridad y buenas prácticas. Actualizado en la iteración de niveles + hardening (2026-07-21).
+> Revisión de seguridad y buenas prácticas. Actualizado en la iteración de **acceso
+> con cuenta** (2026-08-01); antes, en la de niveles + hardening (2026-07-21).
 
-DinoColor es un juego **estático, cliente 100 %**, sin backend, sin cuentas, sin red externa. Eso reduce mucho la superficie de ataque: no hay servidor que comprometer, ni datos de usuario que filtrar, ni autenticación.
+DinoColor es un juego **estático, cliente 100 %**, sin backend propio. Desde
+2026-08-01 **sí puede tener cuentas**, delegadas por completo en **Firebase
+Authentication**: el juego no guarda contraseñas, no valida credenciales y no
+expone ningún servidor propio. Toda la parte jugable sigue funcionando sin
+conexión y sin cuenta (modo invitado).
+
+**Lo que cambia respecto a la revisión anterior:**
+
+| Antes (≤ 2026-07-28) | Ahora |
+|---|---|
+| Sin cuentas, sin login | Login opcional (Google / Apple / correo) + invitado |
+| Sin datos personales | Se guarda **nombre y correo** del proveedor, en el dispositivo |
+| Sin llamadas de red externas | Llamadas a Firebase **solo** al iniciar sesión |
+| CSP fija y cerrada | CSP **calculada**: se abre lo justo, y solo si hay `.env` |
+
+Detalle completo del flujo, activación y decisiones: **[`docs/AUTH.md`](AUTH.md)**.
 
 ## 1. Estado actual de seguridad
 
@@ -38,12 +54,36 @@ Namespaced bajo `dinocolor.` (ver `src/systems/storageSystem.js`). **Solo progre
 
 Todo se **valida al leer** y se clampa al rango de niveles existente. Si `localStorage` no está disponible (Safari privado, WebView restringido), hay un **fallback en memoria** — el juego nunca falla por esto.
 
+### 2.b Datos de la cuenta (desde 2026-08-01)
+
+Solo si el jugador **decide** iniciar sesión. Namespaced bajo `dinocolor.auth.`
+(ver `src/systems/auth/userProfile.js`), **campo a campo, sin `JSON.parse`**:
+
+| Clave | Contenido |
+|---|---|
+| `dinocolor.auth.uid` | identificador del jugador |
+| `dinocolor.auth.displayName` | nombre visible (saneado, máx. 24 caracteres) |
+| `dinocolor.auth.email` | correo, si el proveedor lo entrega (vacío en invitado) |
+| `dinocolor.auth.provider` | `google` · `apple` · `password` · `guest` |
+| `dinocolor.auth.createdAt` / `lastLogin` | fechas ISO |
+
+Es un **espejo de presentación**, no la sesión: sirve para saludar al jugador por
+su nombre en el primer frame y para sostener el modo invitado. La sesión real la
+gestiona el SDK de Firebase en su propio almacenamiento.
+
+En **modo invitado** no hay ningún dato personal: el `uid` se genera localmente con
+`crypto.randomUUID()` y no se envía a ninguna parte.
+
 ## 3. Qué datos NO se guardan / recogen
 
-- **Nada de datos personales** (nombre, email, ubicación, contactos, identificadores de dispositivo).
-- **Sin cuentas, sin login, sin tokens ni credenciales.**
-- **Sin analítica, sin telemetría, sin cookies, sin rastreadores de terceros.**
-- **Sin llamadas de red externas** (el único asset remoto es el GLB de la mascota, servido del **mismo origen**).
+- **Ningún token ni refresh token propio, ninguna contraseña.** El juego nunca ve
+  una contraseña más allá del campo del formulario; se la pasa directamente al SDK
+  de Firebase.
+- **Sin ubicación, contactos ni identificadores de dispositivo.**
+- **Sin analítica, sin telemetría, sin cookies propias, sin rastreadores de terceros.**
+- **Sin llamadas de red externas mientras se juega.** Firebase solo se contacta al
+  iniciar sesión, y su SDK **ni siquiera se descarga** si el jugador entra como
+  invitado (carga diferida). El GLB de la mascota se sirve del **mismo origen**.
 
 ## 4. Riesgos conocidos (no bloqueantes)
 
@@ -56,17 +96,36 @@ Todo se **valida al leer** y se clampa al rango de niveles existente. Si `localS
 
 Cuando se sirva desde un host con control de cabeceras (Netlify, Cloudflare Pages, Nginx, etc.), añadir estas **cabeceras HTTP** (complementan la CSP por `<meta>`):
 
+**Sin acceso con cuenta configurado** (build sin `.env`):
+
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; media-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob:; worker-src 'self' blob:; media-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: geolocation=(), microphone=(), camera=(), usb=(), payment=()
 ```
 
+**Con Firebase Auth configurado**, añadir a esas dos directivas (y solo a esas):
+
+```
+connect-src … https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://<authDomain>
+frame-src   https://<authDomain> https://accounts.google.com https://appleid.apple.com
+```
+
+Es exactamente lo que genera `buildCsp` en `vite.config.js` para la `<meta>`: si el
+build no tiene configuración de Firebase, **no se abre ni un origen extra**.
+
 Notas:
-- `style-src 'unsafe-inline'` es necesario por los estilos en línea de React (`style={{…}}`, `--mascot-size`). El resto de directivas son estrictas.
+- `style-src 'unsafe-inline'` es necesario por los estilos en línea de React (`style={{…}}`, `--mascot-size-base`). El resto de directivas son estrictas.
+- **`blob:` en `img-src` y en `connect-src` no es opcional**: GLTFLoader carga las
+  texturas embebidas del GLB desde un `Blob`, y con `createImageBitmap` disponible
+  lo hace con `fetch()` (que gobierna `connect-src`, no `img-src`). Sin ambas, la
+  mascota se renderiza **gris, sin textura** — y solo en producción, porque la CSP
+  no existe en `npm run dev`. Ver `docs/TECHNICAL_NOTES.md`.
 - La versión por cabecera **incluye** `frame-ancestors`/`form-action` (que por `<meta>` se ignoran).
-- No se necesita `unsafe-eval` ni orígenes externos: todo es de origen propio.
+  Ojo: si se activa Apple/Google, `form-action 'none'` puede interferir con el
+  handler de OAuth — validarlo antes de fijarlo.
+- No se necesita `unsafe-eval`.
 
 ## 6. Recomendaciones para Android / Capacitor (futuro)
 

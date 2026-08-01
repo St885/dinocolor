@@ -57,27 +57,49 @@ npm run build    # producción en dist/
   `three` + R3F, sin drei). El **SVG es el fallback** si el GLB no carga. No cambiar la API del
   componente (`message`, `mood`, `size`, `animation`/`state`).
 
-## ⚠️ Tres cosas que NO hay que deshacer (revisión 2026-07-13)
+## ⚠️ Cosas que NO hay que deshacer (revisiones 2026-07-13 y 2026-08-01)
 
 1. **NO vuelvas a usar los modelos "Oliver" como mascota.** Pesan 22 MB y 44 MB (66 MB para jugar
    una partida) y `oliver_character.glb` **solo tiene 1 animación**, por lo que la celebración de
-   victoria no existía: ganar y perder se veían idénticos. La mascota es **T-Rexo**
-   (`dino_color_mascot.glb`, 0,9 MB). El registro `oliver` sigue en `DinoMascot.jsx` como skin
-   premium, pero **ninguna escena debe pedirlo** hasta que esté comprimido a < 5 MB (Draco/KTX2).
-   Sus GLB fuente están intactos en `assets/`; la copia servible de `public/` se retiró a propósito
-   (era lo que engordaba `dist/` hasta 69 MB).
+   victoria no existía: ganar y perder se veían idénticos. La mascota es **T-Rexo**. El registro
+   `oliver` sigue en `DinoMascot.jsx` como skin premium, pero **ninguna escena debe pedirlo** hasta
+   que esté comprimido a < 5 MB (Draco/KTX2). Sus GLB fuente están intactos en `assets/`; la copia
+   servible de `public/` se retiró a propósito (era lo que engordaba `dist/` hasta 69 MB).
 
-2. **De los 8 clips de T-Rexo, SOLO `idle` es seguro.** Los demás rompen la malla (le despegan la
-   placa del vientre, le colapsan la cabeza). Está protegido con la allowlist `SAFE_CLIPS` en
-   `DinoMascot.jsx`. **No la amplíes sin renderizar el clip y mirarlo.** El arreglo de verdad es
-   repintar los pesos de skinning en Blender (`assets/models/characters/dino-mascot/*.blend`).
-   La emoción (saludo, salto de alegría, cabizbajo) se hace con **poses de cuerpo entero**
-   (`POSES` / `MascotRig`), que no pueden romper el esqueleto.
+2. **El GLB de runtime va OPTIMIZADO — no lo sustituyas por el original de Meshy** (2026-08-01).
+   El modelo actual es **T-Rexo v3**: `dino_color_mascot.glb`, **1,3 MB y 42.000 triángulos**.
+   La fuente sin optimizar pesa **20,5 MB con 395.058 triángulos** y está guardada aparte en
+   `assets/models/characters/dino-mascot/trexo_v3_meshy_source.glb` (gitignored). Copiar la fuente
+   a `public/` lleva `dist/` de 2,6 MB a ~22 MB. Si hay que regenerarlo: decimar a ~42k triángulos
+   y bajar texturas a 1024/1024/512 con Blender en modo background (receta en
+   `docs/TECHNICAL_NOTES.md`). **Techo del proyecto: ningún GLB de runtime > 5 MB.**
 
-3. **El tablero se encaja en la BANDA LIBRE, no en la pantalla.** `Board3D` reserva las bandas del
+3. **`blob:` tiene que estar en `img-src` Y en `connect-src` de la CSP** (`vite.config.js`).
+   GLTFLoader carga las texturas embebidas del GLB desde un `Blob` usando `fetch()`, que gobierna
+   `connect-src`. Si lo quitas, **la mascota se renderiza gris, sin textura** — y solo en el build,
+   porque la CSP no existe en `npm run dev`. Costó un rato encontrarlo; no lo repitas.
+
+4. **La mascota v3 NO tiene esqueleto ni clips.** No es un fallo: la expresividad se hace con
+   **poses de cuerpo entero** (`POSES` / `MascotRig`), que mueven el modelo como objeto rígido.
+   Toda la maquinaria de clips y la allowlist `SAFE_CLIPS` siguen en `DinoMascot.jsx` a propósito,
+   listas para el día que haya un modelo bien riggeado. **No las borres por "código muerto".**
+   (Del modelo anterior solo `idle` era seguro: los demás clips rompían la malla.)
+
+5. **El tamaño de la mascota lo mandan las clases, no el JS.** El componente escribe
+   `--mascot-size-base` y las clases (`.mascot--hero`, `--result`, `--auth`) escriben
+   `--mascot-size`; `.mascot-canvas` usa `var(--mascot-size, var(--mascot-size-base))`.
+   **No vuelvas a poner `--mascot-size` en el `style` inline**: gana a la clase y deja muertos
+   los `clamp()` responsive (era un bug real, la mascota no se encogía en pantallas bajas).
+
+6. **El tablero se encaja en la BANDA LIBRE, no en la pantalla.** `Board3D` reserva las bandas del
    HUD en píxeles (`TOP_RESERVE_PX`, `BOTTOM_RESERVE_PX`) para que nunca se solape con el HUD ni con
    la tarima de T-Rexo. Si cambias la altura del HUD o de la tarima en `game.css`, **actualiza esas
    constantes** o volverán los solapes.
+
+7. **El progreso NO se ata a la cuenta** (2026-08-01). Niveles, récords y estrellas viven en
+   `localStorage` bajo `dinocolor.*` y son del DISPOSITIVO. Iniciar o cerrar sesión no los toca.
+   Separarlos por `uid` sin sincronización en la nube haría que cualquier jugador existente viera
+   desaparecer su progreso al entrar con cuenta por primera vez. Ver `docs/AUTH.md` §3.
 
 > Detalle completo y demás trampas (cronómetro en segundo plano, `clearedLevel` vs `maxLevel`,
 > `key`s de eventos, `useThree` sin selector…) en [`docs/TECHNICAL_NOTES.md`](docs/TECHNICAL_NOTES.md).

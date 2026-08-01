@@ -2,26 +2,41 @@
  * App.jsx
  * -----------------------------------------------------------------------------
  * Máquina de estados de pantallas de DinoColor:
- *   start  →  menu  →  game  →  result  →  (game | menu)
+ *   start  →  auth  →  menu  →  game  →  result  →  (game | menu)
  *
  * Mantiene el nivel actual y el último resultado, y conecta el progreso guardado
  * (niveles desbloqueados, superados, récord, sonido) con las escenas.
+ *
+ * LA PUERTA DE ACCESO (iteración 2026-08-01)
+ * `auth` se cruza UNA vez, entre inicio y menú, y NO bloquea: siempre ofrece
+ * "seguir como invitado". Quien ya tiene sesión (cuenta o invitado) ni la ve —
+ * pasa directo al menú.
+ *
+ * El PROGRESO no depende de la sesión: niveles, récords y estrellas siguen
+ * viviendo en `localStorage` a través de `useLevelProgress`, exactamente igual
+ * que antes. Iniciar o cerrar sesión no lo toca. Es deliberado: mezclar cuenta y
+ * progreso sin sincronización en la nube solo puede terminar en progreso perdido
+ * (ver docs/AUTH.md → "Progreso").
  * -----------------------------------------------------------------------------
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import MobileLayout from './components/layout/MobileLayout.jsx'
 import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import StartScene from './scenes/StartScene.jsx'
+import AuthScene from './scenes/AuthScene.jsx'
 import MenuScene from './scenes/MenuScene.jsx'
 import GameScene from './scenes/GameScene.jsx'
 import ResultScene from './scenes/ResultScene.jsx'
 import useLevelProgress from './hooks/useLevelProgress.js'
+import useAuth from './hooks/useAuth.js'
+import { signOut } from './systems/auth/authService.js'
 import { getFirstLevel, getLevelById, getNextLevel } from './systems/levelSystem.js'
 import { computeStars } from './systems/scoringSystem.js'
 
 export default function App() {
   const progress = useLevelProgress()
+  const auth = useAuth()
   const [scene, setScene] = useState('start')
   const [currentLevelId, setCurrentLevelId] = useState(getFirstLevel().id)
   const [lastResult, setLastResult] = useState(null)
@@ -30,6 +45,31 @@ export default function App() {
   // para forzar un montaje limpio incluso al reiniciar el MISMO nivel desde la pausa
   // (sin él la key no cambiaba y la partida habría continuado con el estado anterior).
   const [runId, setRunId] = useState(0)
+
+  /**
+   * "Jugar": si ya hay sesión, al menú directo; si no, a la puerta de acceso.
+   * Mientras la sesión aún se resuelve (Firebase tarda en responder en un
+   * arranque en frío) también se va a `auth`: allí se enseña un indicador de
+   * carga y, en cuanto se sabe que había sesión, se avanza solo.
+   */
+  const handleStart = useCallback(() => {
+    setScene(auth.isSignedIn ? 'menu' : 'auth')
+  }, [auth.isSignedIn])
+
+  /**
+   * Avance automático desde la puerta de acceso cuando la sesión termina de
+   * resolverse y resulta que el jugador YA estaba dentro. Sin esto, un usuario
+   * con sesión guardada vería el formulario de acceso durante un instante.
+   */
+  useEffect(() => {
+    if (scene === 'auth' && !auth.isLoading && auth.isSignedIn) setScene('menu')
+  }, [scene, auth.isLoading, auth.isSignedIn])
+
+  /** Cierra la sesión y devuelve al jugador a la portada. El progreso NO se toca. */
+  const handleSignOut = useCallback(() => {
+    signOut()
+    setScene('start')
+  }, [])
 
   const startLevel = useCallback((levelId) => {
     const level = getLevelById(levelId) || getFirstLevel()
@@ -81,16 +121,34 @@ export default function App() {
       <MobileLayout>
         {scene === 'start' && (
           <StartScene
-            onStart={() => setScene('menu')}
+            onStart={handleStart}
             soundEnabled={progress.soundEnabled}
             onToggleSound={progress.toggleSound}
           />
         )}
 
+        {scene === 'auth' &&
+          (auth.isLoading ? (
+            <div className="scene scene--auth-loading">
+              <span className="auth-boot" role="status" aria-label="Comprobando tu sesión">
+                <i />
+                <i />
+                <i />
+              </span>
+              <p className="hint">Comprobando tu sesión…</p>
+            </div>
+          ) : (
+            /* `onAuthenticated` recibe el perfil ya adoptado por el servicio; a
+               esta pantalla solo le queda apartarse. */
+            <AuthScene onAuthenticated={() => setScene('menu')} />
+          ))}
+
         {scene === 'menu' && (
           <MenuScene
             onPlayLevel={startLevel}
             onBack={() => setScene('start')}
+            user={auth.user}
+            onSignOut={handleSignOut}
             maxLevel={progress.maxLevel}
             clearedLevel={progress.clearedLevel}
             bestScore={progress.bestScore}

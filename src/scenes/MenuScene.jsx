@@ -19,6 +19,7 @@ import Button from '../components/ui/Button.jsx'
 import Panel from '../components/ui/Panel.jsx'
 import ProgressBar from '../components/ui/ProgressBar.jsx'
 import LevelStars from '../components/ui/LevelStars.jsx'
+import AccountChip from '../components/auth/AccountChip.jsx'
 import { getAllLevels } from '../systems/levelSystem.js'
 import { unlock } from '../systems/audioSystem.js'
 import { CHAPTERS, chapterIndexOfLevel } from '../data/chapters.js'
@@ -42,6 +43,8 @@ export default function MenuScene({
   maxStars = 0,
   soundEnabled,
   onToggleSound,
+  user = null,
+  onSignOut = () => {},
 }) {
   const levels = getAllLevels()
   const total = levels.length
@@ -86,6 +89,14 @@ export default function MenuScene({
           {soundEnabled ? '🔊' : '🔇'}
         </button>
       </div>
+
+      {/* Quién está jugando. Va bajo la cabecera y no dentro de ella: en 360 px
+          el nombre competía con el título y lo empujaba fuera. */}
+      {user && (
+        <div className="menu-account">
+          <AccountChip user={user} onSignOut={onSignOut} />
+        </div>
+      )}
 
       <Panel className="menu-best">
         <div className="best-row">
