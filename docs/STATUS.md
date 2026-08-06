@@ -2,9 +2,124 @@
 
 > Estado del proyecto. Actualizar al cerrar cada iteración.
 
-**Versión:** 0.5.0 — mascota T-Rexo v3 y acceso con cuenta
-**Fecha:** 2026-08-01
+**Versión:** 0.6.1 — tienda local, aspectos y ambientes
+**Fecha:** 2026-08-05
 **Stack:** React 18 + Vite 5 + Three.js + @react-three/fiber (JavaScript/JSX) + Firebase Auth (carga diferida)
+
+---
+
+## 🛍️ Iteración 2026-08-05 (b) — Tienda, aspectos y ambientes
+
+Los huesos de v0.6.0 **ya tienen dónde gastarse**. Sin dependencias nuevas, sin
+modelos nuevos y sin tocar la mecánica.
+
+### Tienda local (`ShopScene`)
+
+Se entra desde la propia celda de huesos del menú —donde ves el saldo es donde
+esperas gastarlo—, con un contador naranja que solo aparece **si hay algo a tu
+alcance**. Dos pestañas: Aspectos y Ambientes. Arriba, un probador que enseña a
+T-Rexo con el aspecto seleccionado aunque todavía no lo tengas.
+
+Nada cuesta dinero real, nada caduca y **ninguna compra afecta a la dificultad**.
+
+### 5 aspectos de T-Rexo — sin un solo byte extra
+
+| Aspecto | Precio | Cómo se consigue |
+|---|---|---|
+| Clásico | gratis | material original |
+| Tropical | 80 🦴 | tinte turquesa + emisión suave |
+| Volcánico | 120 🦴 | multiplicado ceniza + emisión de brasas |
+| Cristal | 160 🦴 | tinte hielo + metalness 0,9 / roughness 0,14 |
+| Dorado | 250 🦴 | oscurecido cálido + emisión dorada fuerte |
+
+**Todos usan el MISMO GLB de 1,3 MB**: solo cambian parámetros de material.
+Además, cada aspecto lleva su propia aura en CSS para distinguirse también en el
+mini de 88 px de la partida.
+
+### 5 ambientes
+
+Selva clásica (gratis) · Amanecer tropical (100) · Cueva neón (140) · Volcán
+naranja (180) · Cristales morados (220). Cada uno viste portada, menú, tienda y
+resultado (variables CSS vía `data-theme`) y la partida (color del cielo + un velo
+estático sobre el canvas).
+
+**Un ambiente NUNCA toca el color de la pelota activa**: eso es información de
+juego —marca la dificultad del nivel y es la referencia de legibilidad, también
+para daltonismo—, no decoración.
+
+### Feedback de recompensa
+
+Tintineo de huesos sintetizado (`Sounds.reward()`, sin archivos de audio)
+encadenado tras el sonido de victoria, y el total con animación de entrada.
+
+### Validación
+
+`npm run build` verde. Recorrido completo en Chrome real (390×844 y 360×640):
+comprar, equipar, descuento correcto, **no cobra dos veces**, **no deja comprar sin
+saldo** («Te faltan 30 🦴»), y un `localStorage` manipulado para equipar un tema
+**no comprado** cae al de serie. **0 errores de consola, 0 peticiones fallidas.**
+
+---
+
+## 🎯🦴 Iteración 2026-08-05 — Rejugabilidad, recompensas y progreso
+
+Sin cambios de mecánica (sigue siendo "pulsa las pelotas antes de que se apaguen"),
+**sin dependencias nuevas** y sin tocar los 42 niveles ni la puntuación base.
+
+### 🐛 El bug gordo: las estrellas no funcionaban
+
+`useGameLoop` termina el nivel **en el instante** en que la puntuación alcanza la
+meta, pero las estrellas se calculaban por el **margen sobre esa meta** — que por
+tanto era siempre ~0. Comprobado jugando: el nivel 1 terminaba con 300/300, la
+pantalla decía literalmente **«superada por 0»** y daba **1⭐ siempre**. Las 2⭐ y
+3⭐ solo caían por casualidad. El sistema que v0.4.0 añadió para dar rejugabilidad
+llevaba desde entonces sin cumplir su función.
+
+**Ahora las estrellas se ganan por RAPIDEZ**: por el tiempo que sobra al alcanzar la
+meta (2⭐ con ≥45 % sin gastar, 3⭐ con ≥65 %). Es lo natural en un juego de
+reflejos, es determinista, se explica en una línea («te sobraron 26 s») y **no
+cambia ni la condición de victoria ni el ritmo de los niveles**. De paso, el consejo
+de la pantalla final pasa de pedir puntos imposibles a pedir segundos: *«3 s más
+rápido para la estrella 2»*.
+
+### 📜 Misiones diarias
+
+Tres retos al día de un catálogo de ocho (`src/data/missions.js`), elegidos de forma
+**determinista a partir de la fecha local** — el mismo día siempre da las mismas.
+Se renuevan a **tu medianoche** (no a la UTC) y también al volver a la pestaña.
+Funcionan sin conexión, sin Firebase y en modo invitado.
+
+### 🦴 Huesos: la moneda local
+
+Recompensa local y **decorativa**: no se compra, no sale del dispositivo y **no
+afecta a la dificultad**. Se paga por MEJORAR, no por repetir: +5 por superar un
+nivel, +10 por cada estrella que mejora la marca del nivel, +10 por récord nuevo, y
+lo que dé cada misión. Repetir el nivel 1 en bucle solo da los 5 de la victoria.
+
+### 📊 Panel de progreso y pantalla final
+
+El menú resume ⭐ estrellas, 🏆 récord y 🦴 huesos en una fila de tarjetas (ocupa
+menos alto que las tres filas que sustituye) más la barra de progreso y las misiones
+del día. La pantalla de resultado muestra el desglose de la recompensa en fichas.
+
+### Bugs encontrados y corregidos
+
+| Bug | Efecto | Estado |
+|---|---|---|
+| Estrellas por margen sobre la meta | 2⭐ y 3⭐ prácticamente inalcanzables | ✅ |
+| «Meta 300 · superada por 0» | Mensaje sin sentido en cada victoria | ✅ |
+| «+60 puntos para la estrella 2» | Consejo imposible: el nivel ya había acabado | ✅ |
+| La recompensa desbordaba la victoria | Botón «Menú» fuera de pantalla (58 px en 390×844, 110 px en 360×640) | ✅ |
+| Misiones ocupaban demasiado en 360×640 | Rejilla de niveles muy apretada | ✅ mitigado |
+
+### Validación
+
+`npm run build` **verde**, `dist/` **2,60 MB**. Recorrido completo en Chrome real con
+WebGL (390×844 y 360×640) **jugando de verdad** con un bot que localiza la pelota
+encendida por color: **0 errores de consola, 0 peticiones fallidas**, victoria con
+⭐3 y 26 s de sobra, misiones avanzando y huesos sumando. `localStorage` corrupto
+(ids inventados, progreso no numérico, día antiguo) **no rompe el juego**: regenera
+misiones y degrada a valores por defecto.
 
 ---
 

@@ -21,6 +21,32 @@ Android con **Capacitor** y desplegarse en **GitHub Pages**.
 3. Suma puntos hasta alcanzar la **meta** antes de que se acabe el tiempo.
 4. Si fallas (pulsas una apagada o dejas que se apague una encendida) pierdes puntos.
 5. Encadena aciertos para subir el **combo** y multiplicar la puntuación.
+6. Cuanto **más rápido** llegues a la meta, más **estrellas** (1–3) te llevas.
+
+### ⭐ Estrellas, 🦴 huesos y 📜 misiones
+
+- **Estrellas (1–3):** se ganan por RAPIDEZ — por el tiempo que sobra al alcanzar la
+  meta. Ganar da 1⭐; llegar con ≈45 % del tiempo sin gastar, 2⭐; con ≈65 %, 3⭐.
+  Se guardan por nivel y solo mejoran, así que repetir un nivel nunca resta.
+- **Huesos 🦴:** moneda **local y decorativa**. Se ganan al superar un nivel, al
+  conseguir estrellas nuevas, al batir un récord y al completar misiones. No se
+  compran, no salen del dispositivo y **no afectan a la dificultad**.
+- **Misiones de hoy:** tres retos diarios (ganar N niveles, un combo de x5, un nivel
+  sin fallar…). Se renuevan a tu medianoche local, funcionan **sin conexión y en modo
+  invitado**, y su recompensa se cobra sola al terminar la partida.
+
+### 🛍️ Tienda
+
+Los huesos se gastan en la tienda (se entra desde el contador de huesos del menú):
+
+- **5 aspectos de T-Rexo** — clásico (gratis), tropical, volcánico, cristal y dorado.
+  Todos usan el **mismo modelo 3D**: cambian parámetros de material, así que no
+  añaden ni un byte de descarga.
+- **5 ambientes** — selva clásica (gratis), amanecer tropical, cueva neón, volcán
+  naranja y cristales morados. Visten menú, portada, tienda, resultado y partida.
+
+**Sin dinero real, sin packs y sin nada que caduque.** Ninguna compra afecta a la
+dificultad ni desbloquea niveles: es decoración.
 
 ---
 

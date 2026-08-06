@@ -51,6 +51,37 @@ Namespaced bajo `dinocolor.` (ver `src/systems/storageSystem.js`). **Solo progre
 | `dinocolor.clearedLevel` | entero ≥ 0 | nivel máximo superado |
 | `dinocolor.bestScore` | entero ≥ 0 | mejor puntuación |
 | `dinocolor.soundEnabled` | `'true'`/`'false'` | preferencia de sonido |
+| `dinocolor.bones` | entero ≥ 0 (tope 9.999.999) | moneda local "huesos" (v0.6.0) |
+| `dinocolor.daily.day` | `'YYYY-MM-DD'` local | día de las misiones vigentes |
+| `dinocolor.daily.ids` | ids separados por `\|` | qué tres misiones tocan hoy |
+| `dinocolor.daily.progress` | enteros separados por `\|` | progreso de cada misión |
+| `dinocolor.daily.done` | dígitos `0`/`1` | misiones ya completadas |
+| `dinocolor.shop.skins` | ids separados por `\|` | aspectos desbloqueados (v0.6.1) |
+| `dinocolor.shop.skin` | id | aspecto equipado |
+| `dinocolor.shop.themes` | ids separados por `\|` | ambientes desbloqueados |
+| `dinocolor.shop.theme` | id | ambiente equipado |
+
+**Inventario de la tienda:** los ids se validan contra el catálogo AL LEER; los que
+no existan (guardado antiguo o manipulado) se descartan en silencio. Y lo *equipado*
+se comprueba contra lo que de verdad se posee: poner a mano
+`dinocolor.shop.theme = 'volcano'` sin haberlo comprado **no surte efecto**, el juego
+arranca con el de serie (verificado).
+
+**No hay compras reales.** Los huesos se ganan jugando; no existe pasarela de pago,
+ni identificadores de compra, ni comunicación con ningún servidor. Manipular el saldo
+solo permite desbloquear DECORACIÓN para uno mismo: ningún artículo altera la
+dificultad ni desbloquea niveles. `spendBones` rechaza importes negativos — si no,
+un artículo con precio −100 sería una forma de fabricar huesos.
+
+**Las cuatro claves `daily.*` se validan en bloque** (`readDaily`): si el día no
+coincide, si algún id no está en el catálogo, si hay ids repetidos o si las longitudes
+no cuadran, se descarta TODO el bloque y se generan misiones nuevas. Probado
+inyectando basura: el juego arranca igual y sigue jugable.
+
+**Los huesos son decorativos**: no se compran, no salen del dispositivo y **no
+desbloquean niveles ni alteran la dificultad**. Por eso manipularlos solo permite
+hacerse trampas a uno mismo, igual que el resto del progreso. Si algún día
+desbloquearan contenido, habría que revisar esta suposición.
 
 Todo se **valida al leer** y se clampa al rango de niveles existente. Si `localStorage` no está disponible (Safari privado, WebView restringido), hay un **fallback en memoria** — el juego nunca falla por esto.
 

@@ -473,3 +473,173 @@ Recorrido completo Inicio → Acceso → Registro → Menú → Juego → Result
 > Aviso para quien valide con CDP: `scrollIntoView` puede desplazar `.app-frame`
 > **aunque tenga `overflow: hidden`**, y entonces todos los rects salen negativos
 > como si estuviera recortado por arriba. Devuelve el scroll a cero antes de medir.
+
+---
+
+## Iteración 2026-08-05 (v0.6.0 — rejugabilidad y recompensas)
+
+### ⚠️ Las estrellas medían algo que NUNCA podía pasar
+
+`useGameLoop` termina el nivel en el instante en que `score >= targetScore`:
+
+```js
+s.score += points
+if (s.score >= level.targetScore) finish('won')   // ← fin inmediato
+```
+
+…pero `computeStars` premiaba el **margen sobre la meta** (2⭐ a 1,2×, 3⭐ a 1,5×).
+Como el nivel acaba justo al cruzarla, ese margen es siempre ~0. Es decir: el juego
+medía una cantidad que su propia condición de victoria hacía imposible acumular.
+
+Comprobado JUGANDO (bot que localiza la pelota encendida por color y la toca): el
+nivel 1 terminaba con **300 sobre meta 300**, la pantalla decía «superada por 0» y
+daba **1⭐**. Las 2⭐/3⭐ solo salían si el último golpe se pasaba mucho — azar.
+
+**Arreglo: estrellas por RAPIDEZ** (`STAR_TIME_THRESHOLDS`, 45 % y 65 % del tiempo
+restante). Se eligió frente a las otras dos opciones porque:
+
+- *Seguir jugando tras la meta* habría restaurado el margen, pero obliga a que los 42
+  niveles duren siempre su tiempo completo — cambia el ritmo de todo el juego.
+- *Precisión* premia otra habilidad, pero es más difícil de explicar en una línea.
+- La rapidez es lo natural en un juego de reflejos, es determinista y el jugador
+  entiende «te sobraron 26 s» sin explicación.
+
+**Fontanería:** `finish()` se define ANTES de `useTimer` (que a su vez necesita
+`finish` para el fin de tiempo), así que no puede leer el tiempo directamente. Se
+guarda la **ref** del cronómetro (`timerRef.current = timeLeftRef`) y `finish` lee de
+ella el valor vivo — no el del último render, que solo se refresca 1 vez por segundo.
+
+**Calibración:** medida real en el nivel 1 con el bot → terminó con 26 s de 32 (81 %)
+→ 3⭐. Los niveles altos no se pudieron conducir con el bot (con 3-4 pelotas
+simultáneas, `Page.captureScreenshot` se agota bajo WebGL por software), así que los
+umbrales están razonados sobre la curva de niveles pero **pendientes de validar en un
+móvil real**. Son dos números en un solo sitio: subirlos endurece las estrellas.
+
+### Misiones diarias — decisiones
+
+- **El día es LOCAL, no UTC.** `dayKey()` se construye a mano en vez de con
+  `toISOString()`: ese método pasa a UTC y en España a la 01:00 seguiría devolviendo
+  el día anterior, renovando las misiones a una hora rarísima.
+- **Elección determinista sin barajar:** se recorre el catálogo con un paso coprimo
+  con su tamaño, a partir de un índice derivado del hash del día. Al ser coprimo, el
+  recorrido pasa por todas las misiones antes de repetir: los tres del día siempre
+  son distintos y varían de un día a otro, sin estado extra.
+- **Se comprueba el día también al volver a la pestaña** (`visibilitychange`) y
+  **antes de sumar** progreso: si alguien deja el juego abierto pasada la medianoche,
+  el progreso no se apunta en las misiones de ayer.
+- **Sin botón de "reclamar":** la recompensa se paga sola al terminar la partida. Un
+  paso extra solo sirve para que el jugador se deje huesos sin recoger.
+
+### Almacenamiento nuevo (sin `JSON.parse`, como el resto)
+
+Cuatro claves de texto plano, saneadas al leer:
+
+```
+dinocolor.bones           entero  (clamp 0..9.999.999)
+dinocolor.daily.day       'YYYY-MM-DD' local
+dinocolor.daily.ids       'flawless1|record1|combo5'
+dinocolor.daily.progress  '1|1|0'
+dinocolor.daily.done      '110'
+```
+
+`readDaily` devuelve **null** —y el sistema regenera misiones— si el día no coincide,
+si algún id no está en el catálogo, si hay ids repetidos o si las longitudes no
+cuadran. Probado inyectando basura (`ids='inventada|otra|xxx'`, `progress='a|b|c'`,
+`done='zzz'`): el juego arranca, regenera las tres misiones y sigue jugable.
+
+**Los huesos NO afectan a la dificultad ni desbloquean niveles.** Si algún día lo
+hicieran, dejarían de ser decorativos y habría que revisar el modelo de amenazas (hoy
+un jugador solo puede hacerse trampas a sí mismo editando su propio `localStorage`).
+
+### Presupuesto vertical de la pantalla de resultado
+
+La tira de recompensa nació como **panel propio** y costaba ~250 px: en el peor caso
+—3 estrellas nuevas + récord + dos misiones completadas, o sea la PRIMERA victoria de
+cualquier jugador nuevo— dejaba el botón «Menú» fuera de la pantalla (58 px de
+desborde en 390×844, 110 px en 360×640).
+
+Se rehízo **dentro** del panel de estadísticas, con fichas en vez de filas (~70 px), y
+en pantallas de ≤700 px las fichas van en **una sola fila deslizable** en horizontal
+en lugar de envolverse en tres. Verificado: ambos botones visibles en los dos tamaños.
+
+> Al medir desbordes con CDP, **devuelve el scroll a cero antes**: `scrollIntoView`
+> desplaza `.app-frame` aunque tenga `overflow: hidden`, y entonces todo mide con
+> `top` negativo y parece recortado. Y no cuentes como recorte lo que esté dentro de
+> `.menu-scroll`: esa zona hace scroll por diseño.
+
+### Trampa del entorno de pruebas
+
+`vite preview` sin puerto libre puede dejarte midiendo **otro proyecto**: durante esta
+iteración el puerto 4173 lo ocupaba otro juego del workspace y el `curl` devolvía 200
+tan campante. **Comprueba el `<title>` o el hash de `assets/index-*.js`, no solo el
+código HTTP.**
+
+---
+
+## Iteración 2026-08-05 (b) · v0.6.1 — Tienda, aspectos y ambientes
+
+### ⚠️ Teñir el GLB sin teñirlos TODOS
+
+`SkeletonUtils.clone` clona el grafo de objetos pero **reutiliza los materiales**, y
+esos materiales viven en la caché de `useLoader`, compartida por todas las
+instancias. Pintar sobre ellos habría teñido a la vez al héroe de la portada, al
+mini de la partida y al de la pantalla final — y el tinte habría **sobrevivido al
+cambio de escena**, porque la caché no se limpia al desmontar.
+
+`DinoModel` clona el material una vez por instancia (`useMemo` sobre el modelo),
+guarda los valores ORIGINALES y a partir de ahí solo actualiza propiedades. Cambiar
+de aspecto no crea materiales nuevos ni recompila shaders, y las copias se liberan
+con `dispose()` al desmontar (son nuestras, no de la caché).
+
+### Por qué un aspecto necesita `color` Y `emissive`
+
+`material.color` se **multiplica** por la textura base. Sobre un dinosaurio azul eso
+sirve para aclarar, oscurecer o moverse dentro de su familia de tonos, pero **no
+puede volverlo dorado**: el azul casi no tiene canal rojo, así que multiplicar por
+oro lo desatura y sale **color hueso** (comprobado con captura antes de corregirlo).
+
+La solución es repartir el trabajo: `color` quita el azul y templa, y `emissive`
+—que SUMA luz— pone el oro. De ahí que el aspecto dorado lleve una emisión tan alta
+(0,62) comparada con el resto. `metalness`/`roughness` multiplican al mapa
+metallic-roughness del modelo, y son los que dan el acabado pulido del cristal y el oro.
+
+### Qué NO cambia un ambiente
+
+- **El color de la pelota activa.** Es información de juego (dificultad del nivel y
+  legibilidad, también para daltonismo), no decoración.
+- **La textura del fondo 3D.** `Background3D` la dibuja una vez en un `CanvasTexture`;
+  regenerarla por tema costaría CPU en cada cambio. El ambiente llega a la partida
+  por el color del cielo (`<color attach="background">`) y un **velo estático** de CSS
+  sobre el canvas, pegado a los bordes para no lavar el centro, que es donde vive el
+  tablero. Consecuencia honesta: **el relieve de la jungla sigue siendo verde en
+  todos los ambientes**; cambia la atmósfera, no el decorado.
+
+### Reglas del inventario (y dónde viven)
+
+Cuatro invariantes, todas en `inventorySystem.js` (puro) y aplicadas en `useRewards`:
+
+1. No se compra lo que no está en el catálogo.
+2. No se compra dos veces (ni se cobra dos veces).
+3. No se compra sin saldo.
+4. No se equipa lo que no está desbloqueado.
+
+La (2) y la (3) están reforzadas en el almacenamiento: `spendBones` devuelve **null**
+si no llega el saldo en vez de recortar a cero, así que quien llama puede distinguir
+"cobrado" de "no te llega" y no entregar el artículo igualmente. Y rechaza importes
+negativos — si no, un artículo con precio −100 sería una forma de fabricar huesos.
+
+La (4) se comprueba **al leer**: `getEquipped` devuelve el valor por defecto si el id
+equipado no está entre los que de verdad se poseen. Verificado poniendo a mano
+`dinocolor.shop.theme = 'volcano'` sin haberlo comprado: el juego arranca con la
+selva clásica.
+
+### Orden de los CSS
+
+`shop.css` va **el último** en `main.jsx`: además de la tienda, contiene los
+AMBIENTES, que redefinen variables ya usadas por `game.css` y `auth.css`. Al vivir
+en `[data-theme]` sobre `.app-frame` ganan por especificidad, sin un solo `!important`.
+
+Si añades un color de interfaz, **úsalo desde una variable**. Los que iban escritos a
+mano en verde (la pestaña de capítulo activa, la sombra inferior del botón primario)
+se quedaban descolgados al equipar un ambiente neón o volcánico, y hubo que ir a
+buscarlos uno a uno.
