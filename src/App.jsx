@@ -81,10 +81,12 @@ export default function App() {
   const handleFinish = useCallback(
     (result) => {
       const won = result.outcome === 'won'
-      // Las estrellas se derivan de la puntuación final (no cambian la condición de
-      // victoria: ganar sigue siendo llegar a la meta). Se calculan ANTES de guardar
-      // para poder contar en la pantalla de resultado si son nuevas.
-      const stars = computeStars(result.score, result.targetScore, won)
+      // Las estrellas se derivan de la RAPIDEZ (tiempo que sobró), no del margen sobre
+      // la meta: como el nivel termina en el instante en que se alcanza la meta, ese
+      // margen era siempre ~0 y nunca se pasaba de 1⭐ (ver scoringSystem.js). La
+      // condición de victoria no cambia: ganar sigue siendo llegar a la meta. Se
+      // calculan ANTES de guardar para saber en la pantalla final si son nuevas.
+      const stars = computeStars(won, result.timeLeft, result.totalTime)
       const levelResult = progress.recordLevelResult(result.levelId, result.score, stars)
 
       // El récord global se guarda siempre; al ganar se marca el nivel como SUPERADO y

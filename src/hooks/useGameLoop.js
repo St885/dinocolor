@@ -81,6 +81,13 @@ export function useGameLoop({ level, onFinish, startPaused = false }) {
     onFinishRef.current = onFinish
   }, [onFinish])
 
+  // Puente hacia el tiempo restante EXACTO del cronómetro. Hace falta porque las
+  // estrellas se calculan por rapidez (ver scoringSystem) y `finish` se define antes
+  // que `useTimer` — que a su vez necesita `finish` para el fin de tiempo. Se guarda
+  // la ref del cronómetro (no su valor) para leer siempre el dato vivo, no el del
+  // último render: el estado de React solo se refresca una vez por segundo.
+  const timerRef = useRef(null)
+
   // Vuelca el estado de la simulación a React.
   const sync = useCallback(() => {
     const s = sim.current
@@ -101,6 +108,7 @@ export function useGameLoop({ level, onFinish, startPaused = false }) {
       s.lights.clear()
       setActiveIds(new Set())
       setStatus(outcome)
+      const timeLeft = timerRef.current ? Math.max(0, timerRef.current.current) : 0
       onFinishRef.current &&
         onFinishRef.current({
           outcome, // 'won' | 'lost'
@@ -110,9 +118,12 @@ export function useGameLoop({ level, onFinish, startPaused = false }) {
           misses: s.misses,
           bestCombo: s.bestCombo,
           targetScore: level.targetScore,
+          // Rapidez: de aquí salen las estrellas y el resumen de la pantalla final.
+          timeLeft,
+          totalTime: level.totalTime,
         })
     },
-    [level.id, level.targetScore],
+    [level.id, level.targetScore, level.totalTime],
   )
 
   // --- Reinicio al (re)entrar a un nivel ---
@@ -189,11 +200,17 @@ export function useGameLoop({ level, onFinish, startPaused = false }) {
     finish(s.score >= level.targetScore ? 'won' : 'lost')
   }, [finish, level.targetScore])
 
-  const { timeLeft, progress: timeProgress } = useTimer({
+  const { timeLeft, progress: timeProgress, timeLeftRef } = useTimer({
     duration: level.totalTime,
     running: live,
     onExpire: handleExpire,
   })
+
+  // `timeLeftRef` es estable, así que esto se ejecuta una sola vez: deja a `finish`
+  // (definido más arriba) una vía para leer el tiempo exacto al terminar la partida.
+  useEffect(() => {
+    timerRef.current = timeLeftRef
+  }, [timeLeftRef])
 
   // --- Interacción: el jugador pulsa una pelota ---
   const onBallTap = useCallback(

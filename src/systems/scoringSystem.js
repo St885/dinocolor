@@ -69,33 +69,51 @@ export function missPenalty() {
 
 // --- Estrellas ----------------------------------------------------------------
 //
-// Antes el menú solo distinguía "superado / no superado" (una ⭐ de adorno), así que
-// ganar raspando y ganar de sobra se veían idénticos: no había ninguna razón para
-// volver a un nivel ya pasado. Las estrellas dan ese motivo sin tocar la mecánica ni
-// las condiciones de victoria: se calculan a partir de la puntuación final, que ya
-// existía. Superar la meta SIEMPRE da al menos 1 estrella (si ganaste, no puedes
-// quedarte en cero); las otras dos premian el margen.
+// Las estrellas existen para dar un motivo de volver a un nivel ya superado.
+//
+// ⚠️ CÓMO SE CALCULABAN ANTES, Y POR QUÉ NO FUNCIONABA (bug corregido 2026-08-05):
+// se derivaban del MARGEN sobre la meta (`score / targetScore`), con 2⭐ a partir de
+// 1,2× y 3⭐ a partir de 1,5×. El problema: `useGameLoop` termina el nivel en el
+// INSTANTE en que la puntuación alcanza la meta, así que el margen final es siempre
+// ~0 y la única forma de sacar 2⭐ o 3⭐ era que el último golpe se pasase mucho —
+// pura casualidad, no habilidad. Comprobado jugando: el nivel 1 terminaba con
+// 300/300, la pantalla decía «superada por 0» y daba 1⭐ SIEMPRE.
+//
+// AHORA se miden por el TIEMPO QUE SOBRA al alcanzar la meta. En un juego de
+// reflejos es lo natural (más rápido = mejor), es determinista, se explica en una
+// línea («te sobraron 18 s») y no cambia ni la mecánica ni el ritmo de los niveles:
+// ganar sigue siendo llegar a la meta, y el nivel sigue acabando ahí mismo.
 
-/** Umbrales de estrella 2 y 3 como múltiplo de la meta del nivel. */
-export const STAR_THRESHOLDS = { two: 1.2, three: 1.5 }
+/**
+ * Fracción del tiempo total que debe QUEDAR para cada estrella.
+ * Son el mando de dificultad de las estrellas: subirlos las hace más exigentes.
+ * Calibrados jugando de verdad (ver docs/TECHNICAL_NOTES.md).
+ */
+export const STAR_TIME_THRESHOLDS = { two: 0.45, three: 0.65 }
 
 /**
  * Estrellas conseguidas (0..3).
- * @param {number} score        puntuación final
- * @param {number} targetScore  meta del nivel
- * @param {boolean} won         si se superó el nivel
+ * @param {boolean} won        si se superó el nivel
+ * @param {number}  timeLeft   segundos que quedaban al terminar
+ * @param {number}  totalTime  duración total del nivel en segundos
  */
-export function computeStars(score, targetScore, won) {
-  if (!won || !(targetScore > 0)) return 0
-  const ratio = score / targetScore
-  if (ratio >= STAR_THRESHOLDS.three) return 3
-  if (ratio >= STAR_THRESHOLDS.two) return 2
+export function computeStars(won, timeLeft, totalTime) {
+  if (!won) return 0
+  // Sin duración válida no podemos medir rapidez: ganar vale 1⭐ y no se castiga.
+  if (!(totalTime > 0)) return 1
+  const left = Math.max(0, Math.min(1, timeLeft / totalTime))
+  if (left >= STAR_TIME_THRESHOLDS.three) return 3
+  if (left >= STAR_TIME_THRESHOLDS.two) return 2
   return 1
 }
 
-/** Puntos que faltan para la siguiente estrella (0 si ya tiene las 3). */
-export function pointsToNextStar(score, targetScore, stars) {
-  if (!(targetScore > 0) || stars >= 3) return 0
-  const need = stars === 0 ? targetScore : targetScore * (stars === 1 ? STAR_THRESHOLDS.two : STAR_THRESHOLDS.three)
-  return Math.max(0, Math.ceil(need - score))
+/**
+ * Segundos que habría que haber ahorrado para la siguiente estrella (0 si ya tiene
+ * las 3). Sustituye a `pointsToNextStar`, que daba un consejo IMPOSIBLE de seguir:
+ * pedía más puntos en un nivel que ya había terminado.
+ */
+export function secondsToNextStar(timeLeft, totalTime, stars) {
+  if (!(totalTime > 0) || stars >= 3) return 0
+  const need = stars <= 1 ? STAR_TIME_THRESHOLDS.two : STAR_TIME_THRESHOLDS.three
+  return Math.max(0, Math.ceil(need * totalTime - timeLeft))
 }

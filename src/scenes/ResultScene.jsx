@@ -36,25 +36,52 @@ import Panel from '../components/ui/Panel.jsx'
 import DinoMascot from '../components/game/DinoMascot.jsx'
 import LevelStars from '../components/ui/LevelStars.jsx'
 import { Sounds } from '../systems/audioSystem.js'
-import { pointsToNextStar } from '../systems/scoringSystem.js'
+import { secondsToNextStar } from '../systems/scoringSystem.js'
 
 /**
  * Mensaje de T-Rexo. Habla del RENDIMIENTO real, no una frase fija: el jugador debe
  * salir sabiendo qué hizo bien o qué le costó el nivel.
+ *
+ * v0.6.0 — se amplía el repertorio y se ordena de MÁS específico a más genérico, de
+ * modo que la primera condición que encaja es también la más informativa. Las frases
+ * de derrota ahora dicen QUÉ falló (se apagaron / fallaste al tocar / te faltó
+ * ritmo) en vez de un ánimo genérico, y la de victoria menciona el tiempo cuando el
+ * margen para la siguiente estrella es pequeño: es el gancho para repetir.
  */
-function mascotMessage({ won, stars, hasNextLevel, accuracy, misses, isRecord }) {
+function mascotMessage({
+  won,
+  stars,
+  hasNextLevel,
+  accuracy,
+  misses,
+  isRecord,
+  secondsToNext,
+}) {
   if (won) {
-    if (stars >= 3) return '¡PERFECTO! No se puede hacer mejor. 🌟'
+    if (stars >= 3) return '¡PERFECTO! No se puede ir más rápido. 🌟'
     if (isRecord) return '¡Nuevo récord en este nivel! 🏆'
+    if (stars === 2 && secondsToNext > 0) {
+      return `¡Muy bien! Con ${secondsToNext} s menos habrían sido 3 estrellas.`
+    }
+    if (stars === 1 && secondsToNext > 0) {
+      return `¡Superado! Si tardas ${secondsToNext} s menos, ganas otra estrella.`
+    }
     if (accuracy >= 90) return '¡Qué puntería! Casi no fallaste.'
-    if (stars === 2) return '¡Muy bien! Una estrella más y es perfecto.'
     return hasNextLevel
       ? '¡Muy bien! ¡Nuevo nivel desbloqueado!'
       : '¡Increíble! ¡Completaste todos los niveles!'
   }
-  if (misses >= 6) return 'Se te apagaron muchas. ¡Tócalas en cuanto brillen!'
-  if (accuracy >= 80) return 'Apuntas genial, solo te falta ir más rápido.'
+  if (misses >= 8) return 'Se te apagaron muchas. ¡Tócalas en cuanto brillen!'
+  if (accuracy < 50) return 'Ojo: tocar una pelota apagada también resta puntos.'
+  if (accuracy >= 85) return 'Apuntas genial, solo te falta ir un poco más rápido.'
+  if (misses >= 4) return 'Vas bien, pero se te escapan algunas. ¡Sin prisa pero sin pausa!'
   return '¡Casi lo logras! No te rindas, ¡tú puedes!'
+}
+
+/** Segundos con un decimal solo cuando aporta ("8 s" / "8,4 s"). */
+function fmtSeconds(s) {
+  const n = Math.max(0, Number(s) || 0)
+  return n >= 10 ? `${Math.round(n)} s` : `${n.toFixed(1).replace('.', ',')} s`
 }
 
 export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onMenu }) {
@@ -75,7 +102,12 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
 
   // Margen respecto a la meta: el "por qué" de la victoria o la derrota, en puntos.
   const margin = result.score - result.targetScore
-  const missing = pointsToNextStar(result.score, result.targetScore, stars)
+  // Rapidez: de aquí salen las estrellas desde v0.6.0. Antes se enseñaban los puntos
+  // que faltaban para la siguiente estrella, un consejo IMPOSIBLE de seguir porque el
+  // nivel termina en el instante en que se alcanza la meta.
+  const timeLeft = Math.max(0, Number(result.timeLeft) || 0)
+  const totalTime = Math.max(0, Number(result.totalTime) || 0)
+  const secondsToNext = secondsToNextStar(timeLeft, totalTime, stars)
 
   const title = won ? (stars >= 3 ? '¡Perfecto!' : '¡Nivel superado!') : 'Inténtalo otra vez'
 
@@ -104,6 +136,7 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
           accuracy,
           misses: result.misses,
           isRecord: result.isRecord,
+          secondsToNext,
         })}
         mood={won ? 'cheer' : 'sad'}
         size={172}
@@ -125,11 +158,14 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
             {result.isRecord && <b className="result-record">RÉCORD</b>}
           </span>
           <strong className="result-score-value">{result.score}</strong>
-          {/* El margen convierte una cifra desnuda en una explicación. */}
+          {/* El margen convierte una cifra desnuda en una explicación.
+              Al GANAR se habla de TIEMPO, no de puntos: como el nivel termina justo
+              al alcanzar la meta, el margen en puntos siempre era ~0 y la línea
+              llegaba a decir literalmente "superada por 0". */}
           <span className="result-score-target">
             🎯 Meta {result.targetScore} ·{' '}
             {won ? (
-              <b className="stat-good">superada por {margin}</b>
+              <b className="stat-good">te sobraron {fmtSeconds(timeLeft)}</b>
             ) : (
               <b className="stat-bad">te faltaron {Math.abs(margin)}</b>
             )}
@@ -153,12 +189,14 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
             <strong>{accuracy}%</strong>
           </div>
         </div>
-        {/* Gancho para repetir: dice EXACTAMENTE lo que falta para la siguiente estrella. */}
-        {won && stars < 3 && missing > 0 && (
+        {/* Gancho para repetir: ahora dice cuántos SEGUNDOS hay que ahorrar, que es
+            algo que el jugador sí puede hacer en el siguiente intento. */}
+        {won && stars < 3 && secondsToNext > 0 && (
           <p className="result-next-star">
-            +{missing} puntos para la estrella {stars + 1} ⭐
+            {secondsToNext} s más rápido para la estrella {stars + 1} ⭐
           </p>
         )}
+
       </Panel>
 
       <div className="scene-actions">
