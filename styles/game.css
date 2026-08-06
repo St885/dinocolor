@@ -244,9 +244,12 @@
 /* Variante "resultado": mismo encuadre, más compacta (aquí compite con la fila de
    estrellas, el panel de estadísticas y dos botones, así que cede altura primero).
    Se encogió al añadir las estrellas para no volver a desbordar el marco. */
+/* Se encogió en v0.6.0: la tira de recompensa añadió altura a una pantalla que ya
+   iba justa, y en el peor caso (3 estrellas nuevas + récord + dos misiones) el
+   botón "Menú" nacía fuera del marco. Medido: sobraban 58 px en 390×844. */
 .mascot--result {
   gap: 8px;
-  --mascot-size: clamp(112px, 17vh, 158px);
+  --mascot-size: clamp(104px, 15vh, 138px);
 }
 
 /* (Los ajustes para pantallas bajas van al FINAL del archivo: una media query no
@@ -1199,7 +1202,7 @@
 }
 
 /* ============================ Resultado ============================ */
-.scene--result { gap: clamp(10px, 2.2vh, 18px); }
+.scene--result { gap: clamp(8px, 1.6vh, 14px); }
 .result-title {
   font-size: clamp(1.8rem, 8vw, 2.6rem);
   font-weight: 800;
@@ -1332,15 +1335,229 @@
 .result-actions-row .btn { flex: 1; }
 
 /* =============================================================================
-   Pantallas bajas (≈360×640) — al FINAL a propósito
-   Una @media no aporta especificidad: si estas reglas fueran antes que las
-   `.result-*` de arriba, perderían por orden de cascada y no harían nada.
+   v0.6.0 — Panel de progreso, misiones diarias y recompensas
+   Todo el movimiento va con `transform`/`opacity`: nada de animar left/top/width
+   ni sombras grandes a pantalla completa (ver dinocolor-performance).
+   ========================================================================== */
 
-   La pantalla de resultado apila título, estrellas, mascota, panel de
-   estadísticas y dos botones grandes. Medido con CDP el 2026-08-01 en 360×640:
-   se salía 68 px del marco y el botón "Menú" nacía FUERA de la vista (solo
-   llegabas desplazándote). Se aprieta lo decorativo; los BOTONES no se tocan,
-   que son la razón de ser de la pantalla.
+/* ---- Utilidad de accesibilidad: texto solo para lectores de pantalla ---- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Fila de estadísticas del menú ----
+   Sustituye a las tres filas "etiqueta … valor" apiladas: mismo contenido (y uno
+   más, los huesos) en bastante menos alto, que es lo que deja sitio a las misiones. */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.stat-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 4px 7px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--c-stroke);
+}
+.stat-ico { font-size: 1.05rem; line-height: 1; }
+.stat-value {
+  font-size: clamp(1.05rem, 4.6vw, 1.3rem);
+  font-weight: 800;
+  color: var(--c-ink);
+  line-height: 1.1;
+}
+.stat-value i { font-style: normal; font-size: 0.7em; font-weight: 700; color: var(--c-ink-dim); }
+.stat-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--c-ink-dim);
+}
+.stat-cell--bones .stat-value { color: var(--c-gold); }
+
+/* ---- Contador de huesos (moneda local) ---- */
+.bones { display: inline-flex; align-items: center; gap: 5px; line-height: 1; }
+.bones-ico { font-size: 1em; }
+.bones-value { font-weight: 800; color: var(--c-gold); }
+.bones--lg { font-size: 1.5rem; }
+.bones--lg .bones-value { text-shadow: 0 0 14px rgba(255, 178, 46, 0.45); }
+
+/* ---- Misiones diarias ---- */
+.missions {
+  width: 100%;
+  max-width: 384px;
+  padding: 10px 12px 11px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(18, 52, 38, 0.7), rgba(10, 36, 26, 0.7));
+  border: 1px solid var(--c-stroke);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.missions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.missions-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--c-ink);
+  letter-spacing: 0.2px;
+}
+.missions-count {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--c-ink-dim);
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.07);
+}
+.missions-count.is-done { color: #06351d; background: var(--c-green); }
+
+.missions-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.mission {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+}
+.mission-ico { font-size: 1rem; text-align: center; line-height: 1; }
+.mission-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mission-text {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  line-height: 1.15;
+}
+/* Barra fina: se anima con scaleX desde el origen izquierdo, no con `width`, para
+   no provocar layout en cada actualización del progreso. */
+.mission-bar {
+  display: block;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+}
+.mission-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--c-lime), var(--c-green));
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mission-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  line-height: 1.1;
+}
+.mission-progress { font-size: 0.82rem; font-weight: 800; color: var(--c-ink); }
+.mission-reward { font-size: 0.7rem; font-weight: 700; color: var(--c-gold); white-space: nowrap; }
+
+.mission.is-done .mission-ico { color: var(--c-green); }
+.mission.is-done .mission-text { color: var(--c-ink-dim); text-decoration: line-through; }
+.mission.is-done .mission-bar i { background: var(--c-green); }
+.mission-reward.is-paid { color: var(--c-green); }
+
+.missions-alldone {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--c-green);
+  text-align: center;
+}
+
+/* ---- Recompensa en la pantalla de resultado ----
+   Vive DENTRO del panel de estadísticas. Como panel independiente costaba ~250 px
+   y en el peor caso (3 estrellas nuevas + récord + dos misiones) dejaba los botones
+   fuera de la pantalla. En tiras de fichas son ~70 px. */
+.reward-strip {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--c-stroke);
+}
+.reward-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.reward-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--c-ink-dim);
+}
+/* Entrada del total: escala + opacidad (compositor), sin tocar layout. */
+.reward-total { animation: reward-pop 0.5s cubic-bezier(0.22, 1.5, 0.4, 1) both; }
+@keyframes reward-pop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+.reward-chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 7px;
+}
+.reward-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--c-stroke);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+.reward-chip b { font-weight: 800; color: var(--c-gold); }
+
+
+/* Nivel perfecto (3⭐): latido dorado MUY suave, solo opacidad, sin repintar sombras. */
+.level-card--perfect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(60% 45% at 50% 0%, rgba(255, 178, 46, 0.3), transparent 70%);
+  animation: perfect-glow 2.6s ease-in-out infinite;
+}
+@keyframes perfect-glow {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+
+/* =============================================================================
+   Pantallas bajas (≈360×640) — SIEMPRE AL FINAL
+
+   Una @media no aporta especificidad: si estas reglas fueran antes que las
+   `.result-*` / `.mission-*` de arriba, perderían por orden de cascada y no
+   harían nada.
+
+   La pantalla de resultado apila título, estrellas, mascota, estadísticas,
+   recompensa y hasta tres botones. Medido con CDP el 2026-08-01 en 360×640: se
+   salía 68 px del marco y el botón "Menú" nacía FUERA de la vista. Se aprieta lo
+   decorativo; los BOTONES no se tocan, que son la razón de ser de la pantalla.
    ========================================================================== */
 @media (max-height: 700px) {
   .scene--result { gap: 7px; }
@@ -1349,4 +1566,41 @@
   .result-stats { padding: 11px 14px; gap: 8px; }
   .result-score-value { font-size: 2rem; }
   .result-cell { padding: 7px 9px; }
+  /* La recompensa se compacta pero NO se oculta: es la novedad de la pantalla.
+     Las fichas pasan a UNA fila deslizable en horizontal en vez de envolverse en
+     tres: en 360 px eso costaba ~84 px y dejaba los dos botones fuera del marco.
+     Se conserva toda la información (basta arrastrar) en vez de esconder fichas. */
+  .reward-strip { margin-top: 6px; padding-top: 6px; }
+  .reward-chip { font-size: 0.74rem; padding: 2px 7px; }
+  .reward-chips {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin-top: 6px;
+  }
+  .reward-chips::-webkit-scrollbar { display: none; }
+  .reward-chip { flex: 0 0 auto; }
+  .result-stars-row { transform: scale(0.86); }
+  .result-title { font-size: clamp(1.3rem, 6.2vw, 1.6rem); }
+  .scene--result { gap: 6px; }
+  /* La mascota cede primero, pero NO desaparece: sigue celebrando, más pequeña. */
+  .mascot--result { --mascot-size: clamp(72px, 11vh, 96px); gap: 6px; }
+  .mascot--result .mascot-bubble { font-size: 0.86rem; padding: 8px 12px; }
+  .result-stats { gap: 6px; padding: 9px 13px; }
+  .result-cell { padding: 5px 8px; }
+  /* Botones algo más bajos (50 px sigue por encima del mínimo táctil cómodo de
+     44 px). Es la última pieza que se toca, y solo en pantallas de ≤700 px. */
+  .scene--result .btn--lg { min-height: 50px; padding: 13px 20px; font-size: 1.05rem; }
+  .stat-cell { padding: 6px 4px 5px; }
+  /* En 360×640 el bloque de misiones dejaba la rejilla de niveles en una ventana
+     de 134 px. Se quitan las barras (el contador "0/1" ya dice lo mismo) y se
+     aprieta el interlineado para devolverle aire a la lista de niveles. */
+  .missions { padding: 7px 10px 8px; }
+  .missions-head { margin-bottom: 5px; }
+  .missions-list { gap: 4px; }
+  .mission-text { font-size: 0.8rem; }
+  .mission-bar { display: none; }
+  .mission-body { gap: 0; }
 }

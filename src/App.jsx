@@ -175,6 +175,9 @@ export default function App() {
             maxStars={progress.maxStars}
             soundEnabled={progress.soundEnabled}
             onToggleSound={progress.toggleSound}
+            bones={rewards.bones}
+            missions={rewards.missions}
+            missionsDone={rewards.missionsDone}
           />
         )}
 

@@ -35,6 +35,7 @@ import Button from '../components/ui/Button.jsx'
 import Panel from '../components/ui/Panel.jsx'
 import DinoMascot from '../components/game/DinoMascot.jsx'
 import LevelStars from '../components/ui/LevelStars.jsx'
+import BoneCount from '../components/ui/BoneCount.jsx'
 import { Sounds } from '../systems/audioSystem.js'
 import { secondsToNextStar } from '../systems/scoringSystem.js'
 
@@ -108,6 +109,7 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
   const timeLeft = Math.max(0, Number(result.timeLeft) || 0)
   const totalTime = Math.max(0, Number(result.totalTime) || 0)
   const secondsToNext = secondsToNextStar(timeLeft, totalTime, stars)
+  const reward = result.reward || { total: 0, parts: [], missions: [] }
 
   const title = won ? (stars >= 3 ? '¡Perfecto!' : '¡Nivel superado!') : 'Inténtalo otra vez'
 
@@ -197,6 +199,33 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
           </p>
         )}
 
+        {/* RECOMPENSA (v0.6.0) — va DENTRO del panel de estadísticas, no en uno
+            propio. Como tira independiente costaba ~250 px (borde, relleno, una
+            fila por concepto) y en el peor caso —3 estrellas nuevas + récord + dos
+            misiones— empujaba los BOTONES fuera de la pantalla. Medido en 390×844.
+            Aquí son ~70 px: un titular con el total y una fila de fichas. */}
+        {reward.total > 0 && (
+          <div className="reward-strip">
+            <div className="reward-head">
+              <span className="reward-title">Has ganado</span>
+              <BoneCount value={reward.total} size="lg" className="reward-total" />
+            </div>
+            <ul className="reward-chips">
+              {reward.parts.map((p, i) => (
+                /* `title` da el concepto completo al pasar el ratón; en móvil el
+                   icono ya lo sugiere y el desglose largo no cabe. */
+                <li key={`${p.label}-${i}`} className="reward-chip" title={p.label}>
+                  <span aria-hidden="true">{p.icon}</span>
+                  <b>+{p.amount}</b>
+                  <span className="sr-only">{p.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {/* No hay línea aparte de "misión completada": sus fichas ya salen arriba
+            con su icono y su recompensa, y el menú las marca como hechas. Repetirlo
+            costaba ~25 px en la pantalla más apretada del juego. */}
       </Panel>
 
       <div className="scene-actions">

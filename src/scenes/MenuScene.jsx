@@ -20,6 +20,7 @@ import Panel from '../components/ui/Panel.jsx'
 import ProgressBar from '../components/ui/ProgressBar.jsx'
 import LevelStars from '../components/ui/LevelStars.jsx'
 import AccountChip from '../components/auth/AccountChip.jsx'
+import DailyMissions from '../components/game/DailyMissions.jsx'
 import { getAllLevels } from '../systems/levelSystem.js'
 import { unlock } from '../systems/audioSystem.js'
 import { CHAPTERS, chapterIndexOfLevel } from '../data/chapters.js'
@@ -45,6 +46,9 @@ export default function MenuScene({
   onToggleSound,
   user = null,
   onSignOut = () => {},
+  bones = 0,
+  missions = [],
+  missionsDone = 0,
 }) {
   const levels = getAllLevels()
   const total = levels.length
@@ -98,18 +102,30 @@ export default function MenuScene({
         </div>
       )}
 
+      {/* PANEL DE PROGRESO (v0.6.0). Antes eran tres filas apiladas "etiqueta …
+          valor"; ahora los tres números viven en una sola fila de tarjetas y la
+          barra de progreso va debajo. Ocupa MENOS alto que la versión anterior aun
+          añadiendo los huesos, que es lo que deja sitio para las misiones. */}
       <Panel className="menu-best">
-        <div className="best-row">
-          <span>🏆 Mejor puntuación</span>
-          <strong>{bestScore}</strong>
-        </div>
-        {/* Estrellas totales: da un objetivo que sobrevive al "ya me pasé el juego". */}
-        <div className="best-row best-row--stars">
-          <span>⭐ Estrellas</span>
-          <strong className="menu-stars-count">
-            {totalStars}
-            <i>/{maxStars}</i>
-          </strong>
+        <div className="stat-row">
+          <div className="stat-cell">
+            <span className="stat-ico" aria-hidden="true">⭐</span>
+            <strong className="stat-value">
+              {totalStars}
+              <i>/{maxStars}</i>
+            </strong>
+            <span className="stat-label">Estrellas</span>
+          </div>
+          <div className="stat-cell">
+            <span className="stat-ico" aria-hidden="true">🏆</span>
+            <strong className="stat-value">{bestScore}</strong>
+            <span className="stat-label">Récord</span>
+          </div>
+          <div className="stat-cell stat-cell--bones">
+            <span className="stat-ico" aria-hidden="true">🦴</span>
+            <strong className="stat-value">{bones}</strong>
+            <span className="stat-label">Huesos</span>
+          </div>
         </div>
         <div>
           <div className="menu-progress-row">
@@ -152,6 +168,12 @@ export default function MenuScene({
       </nav>
 
       <div className="menu-scroll">
+        {/* Las misiones van DENTRO del área con scroll, no en la banda fija de
+            arriba: así se ven nada más entrar (quedan justo bajo los capítulos)
+            pero no roban altura permanente a la rejilla de niveles ni empujan el
+            botón "Continuar", que sigue anclado abajo. */}
+        <DailyMissions missions={missions} done={missionsDone} />
+
         <h2 className="menu-subtitle">
           {chapter.name}
           <em>
