@@ -30,6 +30,7 @@ import GameScene from './scenes/GameScene.jsx'
 import ResultScene from './scenes/ResultScene.jsx'
 import useLevelProgress from './hooks/useLevelProgress.js'
 import useAuth from './hooks/useAuth.js'
+import useRewards from './hooks/useRewards.js'
 import { signOut } from './systems/auth/authService.js'
 import { getFirstLevel, getLevelById, getNextLevel } from './systems/levelSystem.js'
 import { computeStars } from './systems/scoringSystem.js'
@@ -37,6 +38,7 @@ import { computeStars } from './systems/scoringSystem.js'
 export default function App() {
   const progress = useLevelProgress()
   const auth = useAuth()
+  const rewards = useRewards()
   const [scene, setScene] = useState('start')
   const [currentLevelId, setCurrentLevelId] = useState(getFirstLevel().id)
   const [lastResult, setLastResult] = useState(null)
@@ -98,16 +100,29 @@ export default function App() {
         const next = getNextLevel(result.levelId)
         if (next) progress.unlockLevel(next.id)
       }
+      // Misiones diarias y huesos. Va DESPUÉS de guardar el progreso para que
+      // `isRecord` y `previousStars` ya reflejen la realidad, y se llama una sola
+      // vez por partida (la pantalla de resultado solo lee el desglose).
+      const reward = rewards.registerRun({
+        won,
+        stars,
+        previousStars: levelResult.previousStars,
+        isRecord: levelResult.isRecord,
+        bestCombo: result.bestCombo,
+        misses: result.misses,
+      })
+
       setLastResult({
         ...result,
         stars,
         bestStars: levelResult.stars,
         previousStars: levelResult.previousStars,
         isRecord: levelResult.isRecord,
+        reward,
       })
       setScene('result')
     },
-    [progress],
+    [progress, rewards],
   )
 
   const handleNext = useCallback(() => {

@@ -23,6 +23,12 @@ const KEYS = {
   clearedLevel: 'dinocolor.clearedLevel',
   stars: 'dinocolor.stars',
   tutorialSeen: 'dinocolor.tutorialSeen',
+  // v0.6.0 — moneda local (huesos) y misiones diarias.
+  bones: 'dinocolor.bones',
+  dailyDay: 'dinocolor.daily.day',
+  dailyIds: 'dinocolor.daily.ids',
+  dailyProgress: 'dinocolor.daily.progress',
+  dailyDone: 'dinocolor.daily.done',
 }
 
 /** Prefijo de las claves de récord POR NIVEL (`dinocolor.best.7`). */
@@ -176,6 +182,74 @@ export function getTotalStars(totalLevels) {
     if (STAR_RE.test(c)) sum += Number(c)
   }
   return sum
+}
+
+// --- Huesos: la moneda local (v0.6.0) ----------------------------------------
+//
+// Es una recompensa PURAMENTE LOCAL y decorativa: no se compra, no se vende, no
+// sale del dispositivo y no desbloquea nada que afecte a la dificultad. Se guarda
+// como un entero de texto, con el mismo criterio defensivo que el resto.
+
+/** Tope de seguridad: por encima de esto el número deja de caber bien en el HUD. */
+const BONES_MAX = 9_999_999
+
+export function getBones() {
+  const v = parseInt(readRaw(KEYS.bones), 10)
+  return Number.isFinite(v) && v >= 0 ? Math.min(v, BONES_MAX) : 0
+}
+
+/** Suma huesos (ignora cantidades no válidas o negativas). Devuelve el total. */
+export function addBones(amount) {
+  const n = Math.floor(Number(amount))
+  if (!Number.isFinite(n) || n <= 0) return getBones()
+  const total = Math.min(BONES_MAX, getBones() + n)
+  writeRaw(KEYS.bones, String(total))
+  return total
+}
+
+// --- Misiones diarias (v0.6.0) -----------------------------------------------
+//
+// Se guardan en CUATRO claves de texto plano, sin JSON.parse (docs/SECURITY.md):
+//   daily.day      'YYYY-MM-DD' del día local al que pertenecen
+//   daily.ids      ids del catálogo separados por '|'   -> 'win3|stars5|combo5'
+//   daily.progress enteros separados por '|'            -> '2|0|1'
+//   daily.done     un dígito 0/1 por misión             -> '100'
+//
+// Cualquier incoherencia (día distinto, id desconocido, longitudes que no cuadran,
+// texto corrupto) hace que `readDaily` devuelva null y el sistema genere misiones
+// nuevas. Nunca lanza y nunca deja al jugador sin misiones.
+
+const SEP = '|'
+
+/** Lee el bloque diario ya saneado, o null si hay que regenerarlo. */
+export function readDaily(expectedDay, isKnownId, count) {
+  const day = readRaw(KEYS.dailyDay)
+  if (!day || day !== expectedDay) return null
+
+  const ids = String(readRaw(KEYS.dailyIds) || '').split(SEP).filter(Boolean)
+  if (ids.length !== count) return null
+  if (!ids.every((id) => isKnownId(id))) return null
+  // Ids repetidos significarían un guardado manipulado: se descarta el bloque.
+  if (new Set(ids).size !== ids.length) return null
+
+  const rawProgress = String(readRaw(KEYS.dailyProgress) || '').split(SEP)
+  const progress = ids.map((_, i) => {
+    const n = parseInt(rawProgress[i], 10)
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 9999) : 0
+  })
+
+  const rawDone = String(readRaw(KEYS.dailyDone) || '')
+  const done = ids.map((_, i) => rawDone.charAt(i) === '1')
+
+  return { day, ids, progress, done }
+}
+
+/** Guarda el bloque diario. Los tres arrays deben tener la misma longitud. */
+export function writeDaily({ day, ids, progress, done }) {
+  writeRaw(KEYS.dailyDay, String(day))
+  writeRaw(KEYS.dailyIds, ids.join(SEP))
+  writeRaw(KEYS.dailyProgress, progress.map((n) => String(Math.max(0, Math.floor(n) || 0))).join(SEP))
+  writeRaw(KEYS.dailyDone, done.map((b) => (b ? '1' : '0')).join(''))
 }
 
 // --- Tutorial ----------------------------------------------------------------
