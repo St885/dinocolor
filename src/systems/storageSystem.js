@@ -29,6 +29,11 @@ const KEYS = {
   dailyIds: 'dinocolor.daily.ids',
   dailyProgress: 'dinocolor.daily.progress',
   dailyDone: 'dinocolor.daily.done',
+  // v0.6.1 — inventario de la tienda (aspectos y ambientes).
+  skinsOwned: 'dinocolor.shop.skins',
+  skinEquipped: 'dinocolor.shop.skin',
+  themesOwned: 'dinocolor.shop.themes',
+  themeEquipped: 'dinocolor.shop.theme',
 }
 
 /** Prefijo de las claves de récord POR NIVEL (`dinocolor.best.7`). */
@@ -207,6 +212,25 @@ export function addBones(amount) {
   return total
 }
 
+/**
+ * Resta huesos. Devuelve `null` si no hay saldo suficiente (y NO toca nada), o el
+ * total resultante si el gasto se aplicó.
+ *
+ * Que devuelva null en vez de recortar a cero es deliberado: quien llama debe poder
+ * distinguir "cobrado" de "no te llega" para no entregar el artículo igualmente.
+ * Un importe negativo o no numérico se rechaza — si no, "comprar" algo con precio
+ * -100 sería una forma de fabricar huesos.
+ */
+export function spendBones(amount) {
+  const n = Math.floor(Number(amount))
+  if (!Number.isFinite(n) || n < 0) return null
+  const current = getBones()
+  if (n > current) return null
+  const total = current - n
+  writeRaw(KEYS.bones, String(total))
+  return total
+}
+
 // --- Misiones diarias (v0.6.0) -----------------------------------------------
 //
 // Se guardan en CUATRO claves de texto plano, sin JSON.parse (docs/SECURITY.md):
@@ -250,6 +274,64 @@ export function writeDaily({ day, ids, progress, done }) {
   writeRaw(KEYS.dailyIds, ids.join(SEP))
   writeRaw(KEYS.dailyProgress, progress.map((n) => String(Math.max(0, Math.floor(n) || 0))).join(SEP))
   writeRaw(KEYS.dailyDone, done.map((b) => (b ? '1' : '0')).join(''))
+}
+
+// --- Inventario de la tienda (v0.6.1) ----------------------------------------
+//
+// Dos listas de ids separadas por '|' y dos ids sueltos. Mismo criterio que el
+// resto: texto plano, sin JSON.parse, y TODO se valida contra el catálogo al leer.
+// Un id desconocido (guardado antiguo, catálogo cambiado o manipulación) se ignora
+// en silencio en vez de romper la tienda.
+
+const SEP_INV = '|'
+
+/**
+ * Lee una lista de ids, descartando los que no existan y los repetidos.
+ * @param {(id:string)=>boolean} isKnown validador del catálogo correspondiente
+ * @param {string[]} always ids que siempre se consideran en propiedad (los gratis)
+ */
+function readIdList(key, isKnown, always = []) {
+  const raw = String(readRaw(key) || '')
+  const seen = new Set(always.filter(isKnown))
+  raw
+    .split(SEP_INV)
+    .map((s) => s.trim())
+    .filter((s) => s && isKnown(s))
+    .forEach((s) => seen.add(s))
+  return [...seen]
+}
+
+function writeIdList(key, ids) {
+  writeRaw(key, ids.join(SEP_INV))
+}
+
+export function getOwnedSkins(isKnown, free) {
+  return readIdList(KEYS.skinsOwned, isKnown, free)
+}
+export function setOwnedSkins(ids) {
+  writeIdList(KEYS.skinsOwned, ids)
+}
+export function getOwnedThemes(isKnown, free) {
+  return readIdList(KEYS.themesOwned, isKnown, free)
+}
+export function setOwnedThemes(ids) {
+  writeIdList(KEYS.themesOwned, ids)
+}
+
+/**
+ * Id equipado. Devuelve `fallback` si está vacío, si no existe en el catálogo o
+ * si NO está entre los desbloqueados — así, un localStorage manipulado para
+ * equipar algo sin comprarlo simplemente no surte efecto.
+ */
+export function getEquipped(kind, isKnown, owned, fallback) {
+  const key = kind === 'skin' ? KEYS.skinEquipped : KEYS.themeEquipped
+  const raw = String(readRaw(key) || '').trim()
+  if (!raw || !isKnown(raw) || !owned.includes(raw)) return fallback
+  return raw
+}
+
+export function setEquipped(kind, id) {
+  writeRaw(kind === 'skin' ? KEYS.skinEquipped : KEYS.themeEquipped, String(id))
 }
 
 // --- Tutorial ----------------------------------------------------------------

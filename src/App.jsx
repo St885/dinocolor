@@ -20,12 +20,13 @@
  * -----------------------------------------------------------------------------
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import MobileLayout from './components/layout/MobileLayout.jsx'
 import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import StartScene from './scenes/StartScene.jsx'
 import AuthScene from './scenes/AuthScene.jsx'
 import MenuScene from './scenes/MenuScene.jsx'
+import ShopScene from './scenes/ShopScene.jsx'
 import GameScene from './scenes/GameScene.jsx'
 import ResultScene from './scenes/ResultScene.jsx'
 import useLevelProgress from './hooks/useLevelProgress.js'
@@ -34,6 +35,7 @@ import useRewards from './hooks/useRewards.js'
 import { signOut } from './systems/auth/authService.js'
 import { getFirstLevel, getLevelById, getNextLevel } from './systems/levelSystem.js'
 import { computeStars } from './systems/scoringSystem.js'
+import { affordableCount } from './systems/inventorySystem.js'
 
 export default function App() {
   const progress = useLevelProgress()
@@ -133,6 +135,15 @@ export default function App() {
 
   const currentLevel = getLevelById(currentLevelId) || getFirstLevel()
 
+  // ¿Hay algo en la tienda al alcance del saldo actual? Solo entonces el menú
+  // lanza el aviso: un reclamo permanente que nunca puedes atender es ruido.
+  const shopReady = useMemo(
+    () =>
+      affordableCount(rewards.skins, rewards.ownedSkins, rewards.bones) +
+      affordableCount(rewards.themes, rewards.ownedThemes, rewards.bones),
+    [rewards.skins, rewards.themes, rewards.ownedSkins, rewards.ownedThemes, rewards.bones],
+  )
+
   return (
     <ErrorBoundary>
       <MobileLayout>
@@ -178,6 +189,23 @@ export default function App() {
             bones={rewards.bones}
             missions={rewards.missions}
             missionsDone={rewards.missionsDone}
+            onOpenShop={() => setScene('shop')}
+            shopReady={shopReady}
+          />
+        )}
+
+        {scene === 'shop' && (
+          <ShopScene
+            bones={rewards.bones}
+            skins={rewards.skins}
+            themes={rewards.themes}
+            ownedSkins={rewards.ownedSkins}
+            ownedThemes={rewards.ownedThemes}
+            skinId={rewards.skinId}
+            themeId={rewards.themeId}
+            onBuy={rewards.buy}
+            onEquip={rewards.equip}
+            onBack={() => setScene('menu')}
           />
         )}
 

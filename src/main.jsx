@@ -13,6 +13,9 @@ import '../styles/global.css'
 import '../styles/mobile.css'
 import '../styles/game.css'
 import '../styles/auth.css'
+// shop.css va EL ÚLTIMO: además de la tienda, aquí viven los AMBIENTES, que
+// redefinen variables ya usadas por game.css y auth.css.
+import '../styles/shop.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

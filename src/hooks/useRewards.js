@@ -1,9 +1,17 @@
 /**
  * useRewards.js
  * -----------------------------------------------------------------------------
- * Puente entre React y los sistemas de recompensa: huesos 🦴 y misiones diarias.
- * Fino a propósito — toda la lógica está en `rewardSystem` y `missionSystem`, que
- * son puros; aquí solo hay estado de React y lectura/escritura de almacenamiento.
+ * Puente entre React y todo lo que gira alrededor de los huesos 🦴: misiones
+ * diarias (que los dan) e inventario de la tienda (que los gasta).
+ *
+ * Los tres viven en el MISMO hook porque comparten un único recurso —el saldo de
+ * huesos—. Separarlos obligaría a duplicar ese estado o a pasar callbacks de
+ * "cóbrame" de un hook a otro, y bastaría un render a destiempo para enseñar un
+ * saldo que ya no es el real.
+ *
+ * Fino a propósito: toda la lógica está en `rewardSystem`, `missionSystem` e
+ * `inventorySystem`, que son puros; aquí solo hay estado de React y
+ * lectura/escritura de almacenamiento.
  *
  * REGENERACIÓN DIARIA: las misiones se regeneran cuando cambia el día local, y
  * también cuando el bloque guardado no cuadra (ids desconocidos, longitudes que no
@@ -18,7 +26,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as Storage from '../systems/storageSystem.js'
 import { DAILY_COUNT, isKnownMissionId } from '../data/missions.js'
+import { DEFAULT_SKIN, FREE_SKINS, SKINS, getSkin, isKnownSkinId } from '../data/skins.js'
+import { DEFAULT_THEME, FREE_THEMES, THEMES, getTheme, isKnownThemeId } from '../data/themes.js'
 import { applyRun, dayKey, describe, pickDailyMissions } from '../systems/missionSystem.js'
+import { canBuy, canEquip } from '../systems/inventorySystem.js'
 import { computeRunReward } from '../systems/rewardSystem.js'
 
 /** Lee el bloque del día, regenerándolo si falta o no es coherente. */
@@ -108,6 +119,92 @@ export function useRewards() {
 
   const missionsDone = missions.filter((m) => m.done).length
 
+  // --- Inventario de la tienda ------------------------------------------------
+  //
+  // Se lee del almacenamiento SANEADO: los ids que no existan en el catálogo se
+  // descartan, los gratuitos se dan por desbloqueados siempre, y lo "equipado" se
+  // valida contra lo que de verdad está en propiedad (ver storageSystem).
+  const [ownedSkins, setOwnedSkins] = useState(() =>
+    Storage.getOwnedSkins(isKnownSkinId, FREE_SKINS),
+  )
+  const [ownedThemes, setOwnedThemes] = useState(() =>
+    Storage.getOwnedThemes(isKnownThemeId, FREE_THEMES),
+  )
+  const [skinId, setSkinId] = useState(() =>
+    Storage.getEquipped(
+      'skin',
+      isKnownSkinId,
+      Storage.getOwnedSkins(isKnownSkinId, FREE_SKINS),
+      DEFAULT_SKIN,
+    ),
+  )
+  const [themeId, setThemeId] = useState(() =>
+    Storage.getEquipped(
+      'theme',
+      isKnownThemeId,
+      Storage.getOwnedThemes(isKnownThemeId, FREE_THEMES),
+      DEFAULT_THEME,
+    ),
+  )
+
+  /**
+   * Compra un artículo. Devuelve `{ ok, reason?, missing? }`.
+   *
+   * ORDEN IMPORTANTE: primero se COBRA y solo si el cobro tiene éxito se entrega.
+   * `spendBones` devuelve null cuando no hay saldo, así que aunque dos pulsaciones
+   * seguidas pasaran la comprobación previa, la segunda no podría cobrar y no
+   * entregaría nada. Y como la entrega es "añadir a un Set", comprar dos veces no
+   * duplica nada aunque llegara a colarse.
+   */
+  const buy = useCallback(
+    (kind, id) => {
+      const isSkin = kind === 'skin'
+      const item = isSkin ? getSkin(id) : getTheme(id)
+      const owned = isSkin ? ownedSkins : ownedThemes
+      const check = canBuy(item, owned, bones)
+      if (!check.ok) return check
+
+      const left = Storage.spendBones(check.price)
+      if (left === null) return { ok: false, reason: 'funds' }
+      setBones(left)
+
+      const next = [...new Set([...owned, item.id])]
+      if (isSkin) {
+        Storage.setOwnedSkins(next)
+        setOwnedSkins(next)
+        // Al comprar se equipa: nadie compra un aspecto para no ponérselo.
+        Storage.setEquipped('skin', item.id)
+        setSkinId(item.id)
+      } else {
+        Storage.setOwnedThemes(next)
+        setOwnedThemes(next)
+        Storage.setEquipped('theme', item.id)
+        setThemeId(item.id)
+      }
+      return { ok: true, price: check.price, bones: left }
+    },
+    [bones, ownedSkins, ownedThemes],
+  )
+
+  /** Equipa algo YA desbloqueado. Si no lo está, no hace nada. */
+  const equip = useCallback(
+    (kind, id) => {
+      const isSkin = kind === 'skin'
+      const item = isSkin ? getSkin(id) : getTheme(id)
+      const owned = isSkin ? ownedSkins : ownedThemes
+      if (!canEquip(item, owned)) return false
+      Storage.setEquipped(kind, item.id)
+      if (isSkin) setSkinId(item.id)
+      else setThemeId(item.id)
+      return true
+    },
+    [ownedSkins, ownedThemes],
+  )
+
+  // Objetos resueltos (nunca null) para que las escenas no tengan que defenderse.
+  const skin = useMemo(() => getSkin(skinId) || getSkin(DEFAULT_SKIN), [skinId])
+  const theme = useMemo(() => getTheme(themeId) || getTheme(DEFAULT_THEME), [themeId])
+
   return {
     bones,
     missions,
@@ -115,6 +212,17 @@ export function useRewards() {
     missionsTotal: missions.length,
     registerRun,
     refreshDay,
+    // Tienda
+    skins: SKINS,
+    themes: THEMES,
+    ownedSkins,
+    ownedThemes,
+    skinId,
+    themeId,
+    skin,
+    theme,
+    buy,
+    equip,
   }
 }
 

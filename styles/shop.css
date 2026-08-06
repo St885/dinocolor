@@ -1,0 +1,344 @@
+/* =============================================================================
+   shop.css — tienda local, auras de aspecto y AMBIENTES (temas)
+
+   Los temas son la razón de que este archivo vaya EL ÚLTIMO en main.jsx: redefinen
+   variables que global.css declara y que game.css ya ha usado. Al vivir en
+   `[data-theme]` sobre `.app-frame`, ganan por especificidad sin `!important`.
+   ========================================================================== */
+
+/* ============================ Escena tienda ============================ */
+.scene--shop {
+  justify-content: flex-start;
+  gap: clamp(8px, 1.8vh, 14px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-top: calc(16px + var(--safe-top));
+}
+
+.shop-header {
+  width: 100%;
+  max-width: 384px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.shop-title {
+  font-size: clamp(1.5rem, 7vw, 2rem);
+  font-weight: 800;
+  color: var(--c-ink);
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.25));
+}
+.shop-bones {
+  font-size: 1.1rem;
+  padding: 6px 13px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--c-panel-2), var(--c-panel));
+  border: 1px solid var(--c-stroke-strong);
+}
+
+/* ---- Probador ---- */
+.shop-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.mascot--shop { --mascot-size: clamp(110px, 17vh, 152px); gap: 0; }
+.shop-preview-name {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--c-gold);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Pestañas ---- */
+.shop-tabs {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 384px;
+  flex-shrink: 0;
+}
+.shop-tab {
+  flex: 1;
+  padding: 9px 6px;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--c-ink-dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--c-stroke);
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.shop-tab.is-active {
+  color: #06351d;
+  background: linear-gradient(180deg, #7cffbe, var(--c-green));
+  border-color: transparent;
+  box-shadow: 0 3px 0 #0e8a4c, var(--inset-hi);
+}
+
+/* ---- Aviso efímero ---- */
+.shop-flash {
+  width: 100%;
+  max-width: 384px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.87rem;
+  font-weight: 700;
+  text-align: center;
+  animation: shop-flash-in 0.28s ease both;
+}
+.shop-flash--ok {
+  background: rgba(84, 255, 157, 0.14);
+  border: 1px solid rgba(84, 255, 157, 0.45);
+  color: #b9ffd8;
+}
+.shop-flash--bad {
+  background: rgba(255, 178, 46, 0.14);
+  border: 1px solid rgba(255, 178, 46, 0.45);
+  color: #ffdca0;
+}
+@keyframes shop-flash-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Lista de artículos ---- */
+.shop-list {
+  list-style: none;
+  width: 100%;
+  max-width: 384px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-bottom: 6px;
+}
+.shop-item {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(32, 66, 50, 0.6), rgba(17, 45, 33, 0.55));
+  border: 1px solid var(--c-stroke);
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.08s ease;
+}
+.shop-item:active { transform: translateY(1px); }
+.shop-item.is-equipped { border-color: var(--c-green); box-shadow: 0 0 16px rgba(84, 255, 157, 0.18); }
+.shop-item.is-affordable { border-color: rgba(255, 178, 46, 0.5); }
+.shop-item.is-locked { opacity: 0.72; }
+
+.shop-item-art {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--c-stroke);
+}
+.shop-item-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.shop-item-name { font-size: 0.95rem; font-weight: 800; color: var(--c-ink); }
+.shop-item-desc { font-size: 0.78rem; font-weight: 600; color: var(--c-ink-dim); line-height: 1.25; }
+.shop-item-action { display: flex; align-items: center; }
+.shop-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.shop-badge--on { background: var(--c-green); color: #06351d; }
+
+/* Muestrario de colores de un ambiente (sustituye al icono). */
+.theme-swatch { display: flex; gap: 2px; }
+.theme-swatch i { width: 8px; height: 22px; border-radius: 2px; display: block; }
+
+.shop-foot { width: 100%; max-width: 384px; flex-shrink: 0; padding-bottom: 6px; }
+
+/* ============================ Auras de aspecto ============================
+   El tinte del material se aprecia poco en el mini de 88 px, así que cada skin
+   lleva además un halo. Es un degradado ESTÁTICO (sin animación): cuesta un
+   repintado y nada por frame. */
+.mascot--skin-tropical .mascot-canvas::before {
+  background:
+    radial-gradient(60% 55% at 50% 40%, rgba(180, 255, 235, 0.22) 0%, transparent 70%),
+    radial-gradient(circle at 50% 52%, rgba(79, 227, 255, 0.42) 0%, rgba(79, 227, 255, 0) 62%),
+    radial-gradient(50% 18% at 50% 96%, rgba(0, 0, 0, 0.5) 0%, transparent 72%);
+}
+.mascot--skin-volcanic .mascot-canvas::before {
+  background:
+    radial-gradient(60% 55% at 50% 40%, rgba(255, 214, 150, 0.24) 0%, transparent 70%),
+    radial-gradient(circle at 50% 52%, rgba(255, 106, 30, 0.46) 0%, rgba(255, 106, 30, 0) 62%),
+    radial-gradient(50% 18% at 50% 96%, rgba(0, 0, 0, 0.55) 0%, transparent 72%);
+}
+.mascot--skin-crystal .mascot-canvas::before {
+  background:
+    radial-gradient(60% 55% at 50% 40%, rgba(223, 246, 255, 0.26) 0%, transparent 70%),
+    radial-gradient(circle at 50% 52%, rgba(120, 210, 255, 0.44) 0%, rgba(120, 210, 255, 0) 62%),
+    radial-gradient(50% 18% at 50% 96%, rgba(0, 0, 0, 0.5) 0%, transparent 72%);
+}
+.mascot--skin-golden .mascot-canvas::before {
+  background:
+    radial-gradient(60% 55% at 50% 40%, rgba(255, 240, 190, 0.3) 0%, transparent 70%),
+    radial-gradient(circle at 50% 52%, rgba(255, 178, 46, 0.48) 0%, rgba(255, 178, 46, 0) 62%),
+    radial-gradient(50% 18% at 50% 96%, rgba(0, 0, 0, 0.5) 0%, transparent 72%);
+}
+/* Los mismos halos, en pequeño, para el icono de la tienda. */
+.aura-tropical { box-shadow: inset 0 0 14px rgba(79, 227, 255, 0.55); }
+.aura-volcanic { box-shadow: inset 0 0 14px rgba(255, 106, 30, 0.55); }
+.aura-crystal { box-shadow: inset 0 0 14px rgba(120, 210, 255, 0.55); }
+.aura-golden { box-shadow: inset 0 0 14px rgba(255, 178, 46, 0.6); }
+
+/* ============================ Acceso a la tienda ============================ */
+.stat-cell--shop { cursor: pointer; position: relative; font-family: inherit; }
+.stat-cell--shop:active { transform: translateY(1px); }
+.stat-cell--shop.has-offers {
+  border-color: var(--c-gold);
+  box-shadow: 0 0 14px rgba(255, 178, 46, 0.28);
+}
+/* Contador de artículos a tu alcance. Late con `transform`, no con sombras. */
+.stat-dot {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--c-orange);
+  color: #3a1a02;
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  animation: shop-dot 1.9s ease-in-out infinite;
+}
+@keyframes shop-dot {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.16); }
+}
+
+/* ============================ Velo del ambiente en partida ============ */
+.game-theme-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* =============================================================================
+   AMBIENTES — cada uno redefine unas pocas variables sobre `.app-frame`.
+   Se tocan fondo, acentos y brillos; NUNCA el color de la pelota activa, que es
+   información de juego (ver src/data/themes.js).
+   ========================================================================== */
+
+[data-theme='sunrise'].app-frame {
+  background:
+    radial-gradient(130% 60% at 50% 6%, #ffb066 0%, rgba(255, 176, 102, 0) 58%),
+    radial-gradient(80% 50% at 85% 0%, rgba(255, 226, 130, 0.3) 0%, rgba(255, 226, 130, 0) 55%),
+    radial-gradient(100% 70% at 50% 110%, #2a1a3a 0%, #140b1c 70%),
+    linear-gradient(180deg, #6b3a20 0%, #26121c 100%);
+  background-color: #26121c;
+}
+[data-theme='sunrise'].app-shell {
+  background: radial-gradient(120% 90% at 50% -10%, #b4623a 0%, #3a1c22 55%, #100810 100%);
+}
+[data-theme='sunrise'] .btn--primary { box-shadow: 0 7px 0 #a8541a, 0 14px 26px rgba(0,0,0,0.4), var(--inset-hi); }
+[data-theme='sunrise'] .btn--primary:active { box-shadow: 0 3px 0 #a8541a, 0 8px 16px rgba(0,0,0,0.35), var(--inset-hi); }
+[data-theme='sunrise'] {
+  --c-green: #ffc861;
+  --c-green-deep: #e07a2c;
+  --c-panel: rgba(48, 24, 26, 0.68);
+  --c-panel-2: rgba(70, 38, 32, 0.62);
+  --c-stroke: rgba(255, 208, 150, 0.2);
+  --c-stroke-strong: rgba(255, 208, 150, 0.46);
+  --glow-green: 0 0 22px rgba(255, 200, 97, 0.55);
+}
+
+[data-theme='neon'].app-frame {
+  background:
+    radial-gradient(130% 60% at 50% 6%, #123a5c 0%, rgba(18, 58, 92, 0) 60%),
+    radial-gradient(80% 50% at 85% 0%, rgba(255, 107, 179, 0.22) 0%, rgba(255, 107, 179, 0) 55%),
+    radial-gradient(100% 70% at 50% 110%, #0a1030 0%, #05060f 70%),
+    linear-gradient(180deg, #10203f 0%, #070a18 100%);
+  background-color: #070a18;
+}
+[data-theme='neon'].app-shell {
+  background: radial-gradient(120% 90% at 50% -10%, #1d3d6c 0%, #0b1226 55%, #04060d 100%);
+}
+[data-theme='neon'] .btn--primary { box-shadow: 0 7px 0 #0f5f86, 0 14px 26px rgba(0,0,0,0.4), var(--inset-hi); }
+[data-theme='neon'] .btn--primary:active { box-shadow: 0 3px 0 #0f5f86, 0 8px 16px rgba(0,0,0,0.35), var(--inset-hi); }
+[data-theme='neon'] {
+  --c-green: #4fe3ff;
+  --c-green-deep: #1a86c4;
+  --c-panel: rgba(12, 22, 44, 0.7);
+  --c-panel-2: rgba(24, 40, 74, 0.64);
+  --c-stroke: rgba(140, 220, 255, 0.2);
+  --c-stroke-strong: rgba(140, 220, 255, 0.48);
+  --glow-green: 0 0 22px rgba(79, 227, 255, 0.6);
+}
+
+[data-theme='volcano'].app-frame {
+  background:
+    radial-gradient(130% 60% at 50% 100%, #8a2408 0%, rgba(138, 36, 8, 0) 58%),
+    radial-gradient(80% 50% at 20% 0%, rgba(255, 138, 61, 0.22) 0%, rgba(255, 138, 61, 0) 55%),
+    radial-gradient(100% 70% at 50% -10%, #2a1008 0%, #150703 70%),
+    linear-gradient(180deg, #2b0f06 0%, #120401 100%);
+  background-color: #120401;
+}
+[data-theme='volcano'].app-shell {
+  background: radial-gradient(120% 90% at 50% 110%, #a53410 0%, #2a0e05 55%, #0b0301 100%);
+}
+[data-theme='volcano'] .btn--primary { box-shadow: 0 7px 0 #8a2c0c, 0 14px 26px rgba(0,0,0,0.4), var(--inset-hi); }
+[data-theme='volcano'] .btn--primary:active { box-shadow: 0 3px 0 #8a2c0c, 0 8px 16px rgba(0,0,0,0.35), var(--inset-hi); }
+[data-theme='volcano'] {
+  --c-green: #ff9a4d;
+  --c-green-deep: #c2451a;
+  --c-panel: rgba(46, 18, 10, 0.7);
+  --c-panel-2: rgba(72, 30, 16, 0.64);
+  --c-stroke: rgba(255, 180, 130, 0.2);
+  --c-stroke-strong: rgba(255, 180, 130, 0.46);
+  --glow-green: 0 0 22px rgba(255, 154, 77, 0.55);
+}
+
+[data-theme='crystal'].app-frame {
+  background:
+    radial-gradient(130% 60% at 50% 6%, #4a2a86 0%, rgba(74, 42, 134, 0) 60%),
+    radial-gradient(80% 50% at 85% 0%, rgba(79, 227, 255, 0.2) 0%, rgba(79, 227, 255, 0) 55%),
+    radial-gradient(100% 70% at 50% 110%, #180a30 0%, #0b0418 70%),
+    linear-gradient(180deg, #2e1258 0%, #130726 100%);
+  background-color: #130726;
+}
+[data-theme='crystal'].app-shell {
+  background: radial-gradient(120% 90% at 50% -10%, #5b2ea0 0%, #1b0b34 55%, #080312 100%);
+}
+[data-theme='crystal'] .btn--primary { box-shadow: 0 7px 0 #4a1f96, 0 14px 26px rgba(0,0,0,0.4), var(--inset-hi); }
+[data-theme='crystal'] .btn--primary:active { box-shadow: 0 3px 0 #4a1f96, 0 8px 16px rgba(0,0,0,0.35), var(--inset-hi); }
+[data-theme='crystal'] {
+  --c-green: #c79bff;
+  --c-green-deep: #7a3fd4;
+  --c-panel: rgba(30, 16, 56, 0.7);
+  --c-panel-2: rgba(52, 28, 90, 0.64);
+  --c-stroke: rgba(200, 170, 255, 0.22);
+  --c-stroke-strong: rgba(200, 170, 255, 0.48);
+  --glow-green: 0 0 22px rgba(199, 155, 255, 0.55);
+}
+
+/* Pantallas bajas: el probador cede altura antes que la lista de artículos. */
+@media (max-height: 700px) {
+  .mascot--shop { --mascot-size: clamp(84px, 13vh, 112px); }
+  .shop-item { padding: 8px 10px; gap: 9px; }
+  .shop-item-desc { display: none; }
+  .shop-foot { display: none; }
+}

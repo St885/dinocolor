@@ -49,6 +49,8 @@ export default function MenuScene({
   bones = 0,
   missions = [],
   missionsDone = 0,
+  onOpenShop = () => {},
+  shopReady = 0,
 }) {
   const levels = getAllLevels()
   const total = levels.length
@@ -121,11 +123,24 @@ export default function MenuScene({
             <strong className="stat-value">{bestScore}</strong>
             <span className="stat-label">Récord</span>
           </div>
-          <div className="stat-cell stat-cell--bones">
+          {/* La celda de huesos ES el acceso a la tienda: donde ves el saldo es
+              donde esperas poder gastarlo, y así no hace falta otro botón fijo
+              robando altura al menú. */}
+          <button
+            type="button"
+            className={`stat-cell stat-cell--bones stat-cell--shop ${shopReady > 0 ? 'has-offers' : ''}`}
+            onClick={onOpenShop}
+            aria-label={
+              shopReady > 0
+                ? `Tienda: ${bones} huesos, ${shopReady} artículos a tu alcance`
+                : `Tienda: ${bones} huesos`
+            }
+          >
             <span className="stat-ico" aria-hidden="true">🦴</span>
             <strong className="stat-value">{bones}</strong>
-            <span className="stat-label">Huesos</span>
-          </div>
+            <span className="stat-label">Tienda</span>
+            {shopReady > 0 && <span className="stat-dot" aria-hidden="true">{shopReady}</span>}
+          </button>
         </div>
         <div>
           <div className="menu-progress-row">
