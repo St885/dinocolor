@@ -119,6 +119,17 @@ export const Sounds = {
     if (!enabled) return
     tone({ freq: 520, dur: 0.06, type: 'square', gain: 0.12 })
   },
+  /**
+   * Huesos ganados: tintineo de "monedas" (v0.6.1). Sigue siendo síntesis pura —
+   * el juego no descarga ni un archivo de audio. Va DESPUÉS del fanfarrón de
+   * victoria (delays altos) para que no se pisen.
+   */
+  reward() {
+    if (!enabled) return
+    ;[1047, 1319, 1568].forEach((f, i) =>
+      tone({ freq: f, dur: 0.09, type: 'triangle', gain: 0.16, delay: 0.55 + i * 0.07 }),
+    )
+  },
 }
 
 export default { setEnabled, isEnabled, unlock, Sounds }

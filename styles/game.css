@@ -406,11 +406,14 @@
   letter-spacing: 0.4px;
   text-transform: uppercase;
 }
+/* Colores derivados de las variables del tema (antes iban escritos a mano en
+   verde, así que con un ambiente neón o volcánico la pestaña activa se quedaba
+   descolgada del resto de la interfaz). */
 .chapter-tab.is-active {
   color: var(--c-ink);
-  background: linear-gradient(180deg, rgba(46, 104, 78, 0.9), rgba(20, 58, 41, 0.9));
+  background: linear-gradient(180deg, var(--c-panel-2), var(--c-panel));
   border-color: var(--c-stroke-strong);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 14px rgba(84, 255, 157, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), var(--glow-green);
 }
 .chapter-tab.is-locked { opacity: 0.5; }
 .chapter-tab.is-locked.is-active { opacity: 0.8; }
@@ -1531,6 +1534,22 @@
 }
 .reward-chip b { font-weight: 800; color: var(--c-gold); }
 
+
+/* ---- Pulido de capítulos y tarjetas ----
+   Acento superior en la pestaña activa: da jerarquía sin añadir altura. */
+.chapter-tab.is-active::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 18px;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--c-green);
+  transform: translateX(-50%);
+  box-shadow: 0 0 8px rgba(84, 255, 157, 0.7);
+}
+.chapter-tab { position: relative; }
 
 /* Nivel perfecto (3⭐): latido dorado MUY suave, solo opacidad, sin repintar sombras. */
 .level-card--perfect::after {

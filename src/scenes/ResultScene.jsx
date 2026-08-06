@@ -85,13 +85,20 @@ function fmtSeconds(s) {
   return n >= 10 ? `${Math.round(n)} s` : `${n.toFixed(1).replace('.', ',')} s`
 }
 
-export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onMenu }) {
+export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onMenu, skin }) {
   const won = result.outcome === 'won'
 
   useEffect(() => {
     if (won) Sounds.win()
     else Sounds.lose()
   }, [won])
+
+  // Tintineo de huesos, encadenado tras el sonido del resultado. También suena al
+  // perder si alguna misión avanzó lo suficiente para completarse: el premio es
+  // real y merece oírse igual.
+  useEffect(() => {
+    if (result.reward && result.reward.total > 0) Sounds.reward()
+  }, [result.reward])
 
   // Precisión: un dato que el jugador entiende de un vistazo y que invita a repetir.
   const attempts = result.hits + result.misses
@@ -147,6 +154,7 @@ export default function ResultScene({ result, hasNextLevel, onNext, onRetry, onM
            justo en la pantalla donde tiene que celebrar. */
         targetHeight={1.32}
         baseY={-0.66}
+        skin={skin}
       />
 
       {/* Panel compacto: la puntuación manda arriba y el resto va en una rejilla de

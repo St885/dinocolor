@@ -7,10 +7,18 @@
  * -----------------------------------------------------------------------------
  */
 
-export default function MobileLayout({ children }) {
+/**
+ * `theme` es el id del ambiente equipado. Se aplica como `data-theme` en el marco
+ * (y en el shell, que es quien pinta el fondo de escritorio): el CSS redefine ahí
+ * un puñado de variables y cambia toda la atmósfera con un repintado, sin
+ * re-renderizar nada del árbol 3D.
+ */
+export default function MobileLayout({ children, theme = 'jungle' }) {
   return (
-    <div className="app-shell">
-      <div className="app-frame">{children}</div>
+    <div className="app-shell" data-theme={theme}>
+      <div className="app-frame" data-theme={theme}>
+        {children}
+      </div>
     </div>
   )
 }

@@ -33,6 +33,8 @@ export default function GameScene({
   onFinish,
   onRestart,
   onExit,
+  skin,
+  theme,
 }) {
   // El estado inicial se congela al montar: cuando el jugador cierra el tutorial, la
   // prop pasa a false, pero eso no debe reabrir/cerrar nada por su cuenta.
@@ -58,7 +60,10 @@ export default function GameScene({
         camera={{ position: [0, 0, 9], fov: 50 }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       >
-        <color attach="background" args={['#071711']} />
+        {/* El cielo lo pone el ambiente equipado. Es un solo color: cambiarlo no
+            regenera la textura del fondo (que sí sería caro), pero basta para que
+            una cueva neón y un volcán se sientan distintos desde el primer frame. */}
+        <color attach="background" args={[(theme && theme.sky) || '#071711']} />
         <Background3D />
         <Board3D
           layout={game.layout}
@@ -68,12 +73,19 @@ export default function GameScene({
         />
       </Canvas>
 
+      {/* Velo del ambiente: un degradado ESTÁTICO sobre el canvas. No se anima ni
+          se recalcula, así que no cuesta nada por frame, y da al tema su carácter
+          sin tocar la textura del fondo 3D. Va bajo la viñeta y no captura toques. */}
+      {theme && theme.tint !== 'transparent' && (
+        <div className="game-theme-tint" style={{ background: theme.tint }} aria-hidden="true" />
+      )}
+
       {/* Viñeta de profundidad (foco al tablero, look premium) */}
       <div className="game-vignette" />
 
       {/* Acompañante 3D: T-Rexo en su tarima, arriba-izquierda. Board3D reserva esa
           banda en píxeles, así que nunca se solapa con el tablero. */}
-      <MiniDinoWalker lastEvent={game.lastEvent} size={88} sleeping={sleeping} />
+      <MiniDinoWalker lastEvent={game.lastEvent} size={88} sleeping={sleeping} skin={skin} />
 
       <GameHUD
         levelId={level.id}

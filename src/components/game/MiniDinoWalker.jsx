@@ -29,7 +29,7 @@ import { MASCOT_NAME } from '../../data/mascot.js'
 const DRIFT_MS = 3400 // cada cuánto cambia de lado de la tarima
 const CHEER_MS = 1100 // celebración al acertar
 
-function MiniDinoWalker({ lastEvent, size = 88, sleeping = false }) {
+function MiniDinoWalker({ lastEvent, size = 88, sleeping = false, skin }) {
   const [side, setSide] = useState(0) // extremo de la tarima hacia el que deriva
   const [cheer, setCheer] = useState(false)
   const cheerRef = useRef(null)
@@ -78,6 +78,7 @@ function MiniDinoWalker({ lastEvent, size = 88, sleeping = false }) {
               size={size}
               quality="low"
               sleeping={sleeping}
+              skin={skin}
               /* Con fov 30 a distancia 2.95 la altura visible es ≈1.58 (y ∈ ±0.79).
                  El modelo v3 llena y ∈ [-0.62, 0.62]: aprovecha la tarima sin
                  rozar los bordes. Antes ocupaba 1.02 y, siendo más estrecho que

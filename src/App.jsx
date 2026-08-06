@@ -146,12 +146,15 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <MobileLayout>
+      {/* El ambiente equipado viste el marco entero: menú, portada, tienda y
+          resultado leen sus colores de las variables que activa `data-theme`. */}
+      <MobileLayout theme={rewards.themeId}>
         {scene === 'start' && (
           <StartScene
             onStart={handleStart}
             soundEnabled={progress.soundEnabled}
             onToggleSound={progress.toggleSound}
+            skin={rewards.skin}
           />
         )}
 
@@ -219,6 +222,8 @@ export default function App() {
             onFinish={handleFinish}
             onRestart={() => startLevel(currentLevelId)}
             onExit={() => setScene('menu')}
+            skin={rewards.skin}
+            theme={rewards.theme}
           />
         )}
 
@@ -229,6 +234,7 @@ export default function App() {
             onNext={handleNext}
             onRetry={() => startLevel(currentLevelId)}
             onMenu={() => setScene('menu')}
+            skin={rewards.skin}
           />
         )}
       </MobileLayout>

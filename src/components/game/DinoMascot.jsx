@@ -159,10 +159,61 @@ export function DinoModel({
   onFinished,
   onReady,
   targetHeight = 1.4,
+  skinMaterial,
 }) {
   const { scene, animations } = useLoader(GLTFLoader, url)
   const model = useMemo(() => cloneSkeleton(scene), [scene])
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model])
+
+  /**
+   * ASPECTOS (skins): se tiñe el material, no se cambia de modelo.
+   *
+   * ⚠️ HAY QUE CLONAR EL MATERIAL. `SkeletonUtils.clone` clona el grafo de objetos
+   * pero REUTILIZA los materiales, que además viven en la caché de `useLoader` y
+   * son los mismos para todas las instancias. Pintar sobre ellos teñiría a la vez
+   * al héroe de la portada, al mini de la partida y al de la pantalla final — y el
+   * tinte sobreviviría al cambio de escena, porque la caché no se limpia.
+   *
+   * Se clona UNA vez por instancia y a partir de ahí solo se actualizan valores,
+   * así que cambiar de skin no crea materiales nuevos ni recompila shaders.
+   */
+  const ownMaterials = useMemo(() => {
+    const list = []
+    model.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return
+      obj.material = Array.isArray(obj.material)
+        ? obj.material.map((m) => m.clone())
+        : obj.material.clone()
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
+      mats.forEach((m) => list.push({ mat: m, base: {
+        color: m.color ? m.color.clone() : null,
+        emissive: m.emissive ? m.emissive.clone() : null,
+        emissiveIntensity: m.emissiveIntensity,
+        metalness: m.metalness,
+        roughness: m.roughness,
+      } }))
+    })
+    return list
+  }, [model])
+
+  // Liberar las copias al desmontar: son nuestras, no de la caché de useLoader.
+  useEffect(() => () => ownMaterials.forEach(({ mat }) => mat.dispose()), [ownMaterials])
+
+  useEffect(() => {
+    const skin = skinMaterial || {}
+    ownMaterials.forEach(({ mat, base }) => {
+      // Cada propiedad vuelve a su valor ORIGINAL cuando la skin no la define, así
+      // que pasar de "dorado" a "clásico" restaura de verdad el aspecto de fábrica.
+      if (mat.color && base.color) mat.color.copy(base.color).multiplyScalar(1)
+      if (skin.color && mat.color) mat.color.set(skin.color)
+      if (mat.emissive) mat.emissive.set(skin.emissive || (base.emissive ? `#${base.emissive.getHexString()}` : '#000000'))
+      mat.emissiveIntensity =
+        skin.emissiveIntensity != null ? skin.emissiveIntensity : base.emissiveIntensity ?? 1
+      if (base.metalness != null) mat.metalness = skin.metalness != null ? skin.metalness : base.metalness
+      if (base.roughness != null) mat.roughness = skin.roughness != null ? skin.roughness : base.roughness
+      mat.needsUpdate = true
+    })
+  }, [ownMaterials, skinMaterial])
 
   // Normalizar: escala para que la altura sea targetHeight; pies en y=0; centrado x/z.
   const norm = useMemo(() => {
@@ -328,6 +379,7 @@ function ModelWithFallback({ urls, onAllFailed, ...modelProps }) {
             onFinished={modelProps.onFinished}
             onReady={modelProps.onReady}
             targetHeight={modelProps.targetHeight}
+            skinMaterial={modelProps.skinMaterial}
           />
         </MascotRig>
       </Suspense>
@@ -353,6 +405,9 @@ function DinoMascot({
   targetHeight = 1.4,
   baseY = -0.55,
   rotation = [0, 0, 0],
+  /* Aspecto comprado en la tienda. Es un OBJETO de parámetros de material (ver
+     src/data/skins.js): no cambia de modelo ni añade descargas. */
+  skin,
   quality = 'high', // 'high' (héroe/resultado) | 'low' (acompañante del HUD)
   /* Duerme el canvas (frameloop "demand"): sigue pintado, pero deja de dibujar 60
      veces por segundo. Lo usa el acompañante del HUD mientras la partida está
@@ -393,7 +448,10 @@ function DinoMascot({
 
   return (
     <div
-      className={`mascot mascot--3d ${className}`}
+      /* El aura de la skin va en CSS (halo detrás del modelo). Es lo que hace que
+         un aspecto se distinga incluso en el mini de 88 px, donde el tinte del
+         material apenas se aprecia. */
+      className={`mascot mascot--3d ${skin ? `mascot--skin-${skin.aura}` : ''} ${className}`}
       /* `--mascot-size-base`, no `--mascot-size`: un estilo inline gana a
          cualquier clase del mismo elemento, así que escribir aquí la variable
          final anulaba los clamp() responsive de `.mascot--hero`/`--result`/
@@ -453,6 +511,7 @@ function DinoMascot({
             targetHeight={targetHeight}
             baseY={baseY}
             rotation={rotation}
+            skinMaterial={skin && skin.material}
             onAllFailed={handleAllFailed}
           />
         </Canvas>

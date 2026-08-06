@@ -13,7 +13,7 @@ import DinoMascot from '../components/game/DinoMascot.jsx'
 import { MASCOT_NAME } from '../data/mascot.js'
 import { unlock } from '../systems/audioSystem.js'
 
-export default function StartScene({ onStart, soundEnabled, onToggleSound }) {
+export default function StartScene({ onStart, soundEnabled, onToggleSound, skin }) {
   // El navegador solo deja crear el AudioContext dentro de un gesto del usuario. Si el
   // primer toque del jugador era este botón (y no <Button>, que ya lo hacía), el audio
   // se quedaba bloqueado toda la sesión.
@@ -64,6 +64,7 @@ export default function StartScene({ onStart, soundEnabled, onToggleSound }) {
            veía bastante más pequeño. */
         targetHeight={1.32}
         baseY={-0.66}
+        skin={skin}
       />
 
       <div className="scene-actions">
