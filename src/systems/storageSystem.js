@@ -34,6 +34,10 @@ const KEYS = {
   skinEquipped: 'dinocolor.shop.skin',
   themesOwned: 'dinocolor.shop.themes',
   themeEquipped: 'dinocolor.shop.theme',
+  // v0.6.2 — retención diaria: racha de entrada.
+  streakLastDay: 'dinocolor.streak.day',
+  streakDay: 'dinocolor.streak.n',
+  streakTotal: 'dinocolor.streak.total',
 }
 
 /** Prefijo de las claves de récord POR NIVEL (`dinocolor.best.7`). */
@@ -332,6 +336,37 @@ export function getEquipped(kind, isKnown, owned, fallback) {
 
 export function setEquipped(kind, id) {
   writeRaw(kind === 'skin' ? KEYS.skinEquipped : KEYS.themeEquipped, String(id))
+}
+
+// --- Racha diaria (v0.6.2) ---------------------------------------------------
+//
+// Tres claves de texto plano. La FECHA del último cobro es el dato importante:
+// de ella se deduce todo lo demás (si hoy toca, si la racha sigue o se rompe),
+// así que no hay ningún contador que pueda "adelantarse" solo.
+//
+// `readStreak` nunca lanza y nunca devuelve null: si algo está corrupto, entrega
+// una racha en blanco. Un jugador con el almacenamiento manipulado empieza de
+// cero, que es lo peor que le puede pasar.
+
+/** Formato de fecha admitido. Cualquier otra cosa se trata como "sin fecha". */
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+export function readStreak() {
+  const raw = String(readRaw(KEYS.streakLastDay) || '')
+  const lastDay = DAY_RE.test(raw) ? raw : ''
+  const n = parseInt(readRaw(KEYS.streakDay), 10)
+  const t = parseInt(readRaw(KEYS.streakTotal), 10)
+  return {
+    lastDay,
+    day: Number.isFinite(n) && n >= 1 ? n : 1,
+    total: Number.isFinite(t) && t >= 0 ? Math.min(t, 99999) : 0,
+  }
+}
+
+export function writeStreak({ lastDay, day, total }) {
+  writeRaw(KEYS.streakLastDay, String(lastDay || ''))
+  writeRaw(KEYS.streakDay, String(Math.max(1, Math.floor(day) || 1)))
+  writeRaw(KEYS.streakTotal, String(Math.max(0, Math.floor(total) || 0)))
 }
 
 // --- Tutorial ----------------------------------------------------------------

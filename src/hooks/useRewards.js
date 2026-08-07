@@ -2,7 +2,8 @@
  * useRewards.js
  * -----------------------------------------------------------------------------
  * Puente entre React y todo lo que gira alrededor de los huesos 🦴: misiones
- * diarias (que los dan) e inventario de la tienda (que los gasta).
+ * diarias y racha de entrada (que los dan) e inventario de la tienda (que los
+ * gasta).
  *
  * Los tres viven en el MISMO hook porque comparten un único recurso —el saldo de
  * huesos—. Separarlos obligaría a duplicar ese estado o a pasar callbacks de
@@ -29,6 +30,7 @@ import { DAILY_COUNT, isKnownMissionId } from '../data/missions.js'
 import { DEFAULT_SKIN, FREE_SKINS, SKINS, getSkin, isKnownSkinId } from '../data/skins.js'
 import { DEFAULT_THEME, FREE_THEMES, THEMES, getTheme, isKnownThemeId } from '../data/themes.js'
 import { applyRun, dayKey, describe, pickDailyMissions } from '../systems/missionSystem.js'
+import { claimStreak, describeStreak, streakState } from '../systems/dailyStreakSystem.js'
 import { canBuy, canEquip } from '../systems/inventorySystem.js'
 import { computeRunReward } from '../systems/rewardSystem.js'
 
@@ -53,9 +55,15 @@ export function useRewards() {
   const [bones, setBones] = useState(() => Storage.getBones())
   const [daily, setDaily] = useState(loadOrCreateDaily)
 
-  /** Si ha cambiado el día, cambia las misiones. Idempotente y barato. */
+  const [streakSaved, setStreakSaved] = useState(() => Storage.readStreak())
+
+  /** Si ha cambiado el día, renueva las misiones. Idempotente y barato. */
   const refreshDay = useCallback(() => {
-    setDaily((current) => (current.day === dayKey() ? current : loadOrCreateDaily()))
+    const hoy = dayKey()
+    setDaily((current) => (current.day === hoy ? current : loadOrCreateDaily()))
+    // La racha no se "renueva": se recalcula sola a partir de la fecha del último
+    // cobro, así que basta con volver a leerla para que el botón se reactive.
+    setStreakSaved(Storage.readStreak())
   }, [])
 
   // Al volver a la pestaña (o a la app en móvil) se comprueba el día. Sin esto, un
@@ -118,6 +126,26 @@ export function useRewards() {
   )
 
   const missionsDone = missions.filter((m) => m.done).length
+
+  /**
+   * Cobra la racha de hoy. Devuelve `null` si hoy ya estaba cobrada — la guarda
+   * vive en `claimStreak`, así que ni una doble pulsación ni un estado de React
+   * desfasado pueden pagar dos veces.
+   */
+  const claimDailyStreak = useCallback(() => {
+    const fresco = Storage.readStreak()
+    const res = claimStreak(fresco)
+    if (!res) return null
+    Storage.writeStreak(res.next)
+    setStreakSaved(res.next)
+    setBones(Storage.addBones(res.reward))
+    return { reward: res.reward, day: res.day, isBonus: res.isBonus }
+  }, [])
+
+  const streak = useMemo(() => {
+    const state = streakState(streakSaved)
+    return { ...state, days: describeStreak(state) }
+  }, [streakSaved])
 
   // --- Inventario de la tienda ------------------------------------------------
   //
@@ -212,6 +240,9 @@ export function useRewards() {
     missionsTotal: missions.length,
     registerRun,
     refreshDay,
+    // Retención diaria
+    streak,
+    claimDailyStreak,
     // Tienda
     skins: SKINS,
     themes: THEMES,

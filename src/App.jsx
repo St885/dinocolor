@@ -194,6 +194,8 @@ export default function App() {
             missionsDone={rewards.missionsDone}
             onOpenShop={() => setScene('shop')}
             shopReady={shopReady}
+            streak={rewards.streak}
+            onClaimStreak={rewards.claimDailyStreak}
           />
         )}
 

@@ -13,9 +13,12 @@ import '../styles/global.css'
 import '../styles/mobile.css'
 import '../styles/game.css'
 import '../styles/auth.css'
-// shop.css va EL ÚLTIMO: además de la tienda, aquí viven los AMBIENTES, que
-// redefinen variables ya usadas por game.css y auth.css.
+// shop.css va después de game.css/auth.css: además de la tienda, aquí viven los
+// AMBIENTES, que redefinen variables ya usadas por esos dos.
 import '../styles/shop.css'
+// daily.css solo añade clases nuevas y CONSUME variables (no las redefine), así
+// que su posición no afecta a los ambientes.
+import '../styles/daily.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

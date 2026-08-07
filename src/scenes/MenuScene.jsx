@@ -21,6 +21,7 @@ import ProgressBar from '../components/ui/ProgressBar.jsx'
 import LevelStars from '../components/ui/LevelStars.jsx'
 import AccountChip from '../components/auth/AccountChip.jsx'
 import DailyMissions from '../components/game/DailyMissions.jsx'
+import { DailyStreakModal, DailyStreakStrip } from '../components/game/DailyStreak.jsx'
 import { getAllLevels } from '../systems/levelSystem.js'
 import { unlock } from '../systems/audioSystem.js'
 import { CHAPTERS, chapterIndexOfLevel } from '../data/chapters.js'
@@ -51,7 +52,16 @@ export default function MenuScene({
   missionsDone = 0,
   onOpenShop = () => {},
   shopReady = 0,
+  streak = null,
+  onClaimStreak = () => null,
 }) {
+  /**
+   * El modal de racha se abre SOLO si hoy hay algo que cobrar, y una vez por
+   * visita al menú: si el jugador lo cierra sin reclamar, no vuelve a saltarle a
+   * la cara cada vez que entra y sale de un nivel. La tira de abajo lo deja
+   * disponible el resto del tiempo.
+   */
+  const [streakOpen, setStreakOpen] = useState(() => Boolean(streak && !streak.claimedToday))
   const levels = getAllLevels()
   const total = levels.length
   const completed = Math.max(0, Math.min(total, clearedLevel))
@@ -187,6 +197,8 @@ export default function MenuScene({
             arriba: así se ven nada más entrar (quedan justo bajo los capítulos)
             pero no roban altura permanente a la rejilla de niveles ni empujan el
             botón "Continuar", que sigue anclado abajo. */}
+        {streak && <DailyStreakStrip streak={streak} onOpen={() => setStreakOpen(true)} />}
+
         <DailyMissions missions={missions} done={missionsDone} />
 
         <h2 className="menu-subtitle">
@@ -252,6 +264,14 @@ export default function MenuScene({
 
       {/* Las acciones quedan ANCLADAS abajo. Antes vivían dentro del área con scroll:
           con las tarjetas de nivel en pantalla, "Continuar" se iba fuera de la vista. */}
+      {streakOpen && streak && (
+        <DailyStreakModal
+          streak={streak}
+          onClaim={onClaimStreak}
+          onClose={() => setStreakOpen(false)}
+        />
+      )}
+
       <div className="menu-actions">
         <Button variant="primary" size="lg" block onClick={() => onPlayLevel(continueId)}>
           {allDone ? `↻ Rejugar nivel ${continueId}` : `▶ Continuar (Nivel ${continueId})`}
