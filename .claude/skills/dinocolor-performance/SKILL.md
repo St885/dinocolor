@@ -46,6 +46,17 @@ Optimización de rendimiento de DinoColor **sin cambiar mecánica**. Asume `dino
 - [ ] **Ningún `box-shadow` grande y animado a pantalla completa** (`.hud-flash` usaba `inset 0 0 130px` en cada acierto). Degradado radial + `opacity`.
 - [ ] `useFrame` con **salida temprana** cuando el objeto está en reposo — fijando antes el estado exacto (los lerps son asintóticos).
 
+### ⚠️ Los fps en headless NO miden nada
+
+Sin GPU (SwiftShader) los fotogramas por segundo son ruido: en v0.6.3 la escena **quieta**
+dio 23,5 fps y la misma escena con todos los efectos disparándose dio 46,5 — un "coste
+negativo" que solo demuestra que el instrumento no sirve. Mide **trabajo de hilo
+principal**, que es independiente del rasterizador.
+
+Y no compares unidades distintas: `ScriptDuration` sale en segundos **por ventana de
+medida**. 22,8 ms de script por segundo son ≈0,23 ms por frame a 60 fps, **no** un 137 %
+del presupuesto de 16,7 ms de un frame.
+
 ### Cómo medir (sin instalar nada)
 
 `Performance.getMetrics` por CDP, comparando una ventana con el juego **en pausa** antes y después

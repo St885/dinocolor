@@ -58,6 +58,20 @@ Los huesos se gastan en la tienda (se entra desde el contador de huesos del men�
 **Sin dinero real, sin packs y sin nada que caduque.** Ninguna compra afecta a la
 dificultad ni desbloquea niveles: es decoración.
 
+### ✨ Efectos al acertar
+
+- **Cada color se siente distinto.** Las pelotas verdes, cian, doradas, naranjas y
+  rosas/moradas tienen sus propias partículas, su onda de choque y **su sonido**.
+- **Puntuación flotante:** el `+N` sale sobre la pelota que acabas de tocar, y
+  «¡RÁPIDO!» si has entrado en el bonus de rapidez.
+- **Combos con celebración:** al llegar a x3, x5, x8 y x12 aparece su rótulo, suena un
+  arpegio y se enciende un aura en los bordes de la pantalla que sube con la racha.
+- **Al fallar** el aviso cae en naranja con una sacudida breve: se nota, pero no castiga.
+
+Todo esto es **decorativo**: no cambia la mecánica, ni la puntuación, ni la dificultad.
+Si tienes activado *reducir movimiento* en el sistema, la sacudida y el latido del aura
+se desactivan solos.
+
 ---
 
 ## 🚀 Instalación y ejecución
@@ -130,6 +144,18 @@ guardado local · sonidos sintetizados · **mascota 3D T-Rexo** (con fallback SV
 error). `npm run build` **verde**, recorrido completo jugado en navegador con WebGL:
 **0 errores de consola**.
 
+**Iteración 2026-08-07** (v0.6.3 · impacto del acierto):
+
+- ✨ **Efectos distintos por color** (5 familias), **puntuación flotante** sobre la
+  pelota tocada, **celebración de combo** en 4 escalones y feedback de fallo legible.
+- 🔊 **Sonido por familia** y arpegio al cruzar un escalón de combo — sintetizados,
+  **sin un solo byte de audio descargado**.
+- ⚡ **Coste medido**: 22,8 ms de script por segundo martilleando el tablero (≈0,23 ms
+  por frame a 60 fps) frente a 8,9 ms con la escena quieta; tope duro de 6 textos y 14
+  partículas; nodos DOM 218 → 233 y heap plano.
+- ✅ Validado en Chrome real con WebGL a 390×844 y 360×640: **0 errores de consola, 0
+  peticiones fallidas, 0 violaciones de CSP**, y misiones/tienda/racha/desafío intactos.
+
 **Iteración 2026-07-28** (progresión · claridad · rendimiento):
 
 - ⭐ **Estrellas 1–3 por nivel** según el margen sobre la meta, con contador global
@@ -181,5 +207,4 @@ Ver detalle en [`docs/STATUS.md`](docs/STATUS.md) y plan en [`docs/ROADMAP.md`](
 ## 🔜 Próximas mejoras
 
 Repintar los pesos de T-Rexo en Blender (desbloquea sus animaciones), comprimir los GLB de Oliver a
-< 5 MB para recuperarlo como skin premium, más formas de tablero, función real del cofre, tienda y
-skins, logros, y publicación en Android. Detalle en [`docs/ROADMAP.md`](docs/ROADMAP.md).
+< 5 MB para recuperarlo como skin premium, más formas de tablero, función real del cofre, logros, y publicación en Android. Detalle en [`docs/ROADMAP.md`](docs/ROADMAP.md).

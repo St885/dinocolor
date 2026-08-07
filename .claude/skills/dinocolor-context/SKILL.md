@@ -31,6 +31,7 @@ Contexto mínimo y reglas invariantes de DinoColor. Cárgalo al inicio de cualqu
 - **Estrellas 1–3 por nivel** según el margen sobre la meta (`computeStars` en `scoringSystem.js`). No cambian la condición de victoria. Se guardan como cadena de dígitos (sin `JSON.parse`).
 - Pantallas: **StartScene → MenuScene → GameScene → ResultScene** (victoria/derrota) + **TutorialOverlay** (nivel 1, una vez), **PauseOverlay** y **ErrorBoundary**.
 - Mascota: **T-Rexo** (`dino_color_mascot.glb`, 0,9 MB). Ver `dinocolor-mascot-3d` (hay reglas críticas de animación).
+- **Efectos del acierto (v0.6.3):** `src/data/hitEffects.js` agrupa los colores de nivel en **5 familias** (`leaf`, `crystal`, `gold`, `ember`, `magic`) y cada familia decide partículas, onda de choque, matiz del texto y **sonido**. El texto flotante (`components/game/HitFx.jsx` + `styles/fx.css`) es DOM sobre el canvas, con `pointer-events: none`. Son **decorativos**: no tocan mecánica ni puntuación.
 
 ## Reglas de oro (invariantes — no las repitas en cada prompt, viven aquí)
 
@@ -46,6 +47,6 @@ Contexto mínimo y reglas invariantes de DinoColor. Cárgalo al inicio de cualqu
 
 ## Documentación viva del proyecto
 
-- `docs/STATUS.md` — estado por iteración (v0.4.0, iteración 2026-07-28).
+- `docs/STATUS.md` — estado por iteración (última: **v0.6.3**, 2026-08-07).
 - `docs/TECHNICAL_NOTES.md` — decisiones y **trampas** (cronómetro en segundo plano, `clearedLevel` vs `maxLevel`, skinning de T-Rexo, luces, etc.). Léelo antes de tocar zonas delicadas.
 - `CLAUDE.md` (raíz del proyecto) — reglas detalladas y "no deshacer".

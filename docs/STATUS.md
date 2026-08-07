@@ -2,11 +2,68 @@
 
 > Estado del proyecto. Actualizar al cerrar cada iteración.
 
-**Versión:** 0.6.2 — racha diaria y desafío del día
-**Fecha:** 2026-08-05
+**Versión:** 0.6.3 — impacto visual y sonoro del acierto
+**Fecha:** 2026-08-07
 **Stack:** React 18 + Vite 5 + Three.js + @react-three/fiber (JavaScript/JSX) + Firebase Auth (carga diferida)
 
 ---
+
+## ✨🔊 Iteración 2026-08-07 — v0.6.3 · El acierto se siente
+
+El juego se veía bien pero acertar sonaba y se veía igual en el nivel 1 que en el 42.
+Esta iteración pone **premio** en el acierto **sin tocar la mecánica**: se pulsa lo
+mismo, se puntúa lo mismo y los niveles son los mismos.
+
+### Cada color se siente distinto
+
+Los seis colores de nivel se agrupan en **cinco familias** (`src/data/hitEffects.js`),
+y la familia decide partículas, onda de choque, matiz tipográfico y **sonido**:
+
+| Familia | Colores | Carácter |
+|---|---|---|
+| `leaf` | `#39ff88` | pocas partículas, gordas, se apagan pronto |
+| `crystal` | `#46e0ff` | muchas y finas, onda de choque amplia y lenta |
+| `gold` | `#ffd23f` | las más numerosas y grandes: el "chorro de monedas" |
+| `ember` | `#ff7b3f` | pocas, calientes, se consumen rápido |
+| `magic` | `#ff5fae`, `#b06bff` | giran al salir (único con `swirl`) |
+
+El **tono** siempre lo pone el color del nivel, no la familia: el efecto refuerza la
+señal que el jugador ya está siguiendo en vez de meter un color nuevo.
+
+### Combo con escalones
+
+El mismo contador de combo que ya llevaba `useGameLoop` (no hay sistema paralelo)
+se traduce a **cuatro escalones**: x3 «¡COMBO x3!», x5 «¡EN RACHA!», x8 «¡IMPARABLE!»
+y x12 «¡LEGENDARIO!». Cada uno enciende un **aura en los bordes** de la pantalla —
+nunca en el centro, para no competir con las pelotas — y encadena un **arpegio** por
+encima del sonido del acierto. Solo el escalón 4 respira, y lo hace con `opacity`.
+
+### Puntuación flotante y fallo legible
+
+Al acertar sale el **`+N` sobre la pelota tocada** (y «¡RÁPIDO!» si entró en el bonus
+de rapidez). Al fallar, el texto **cae** en vez de subir, en naranja, con una sacudida
+de 4 px de la escena: se nota sin castigar.
+
+### Coste medido, no estimado
+
+- **Sin dependencias nuevas** ni assets nuevos: los sonidos son sintetizados y las
+  partículas reutilizan geometrías de módulo.
+- **Tope duro de 6 textos** simultáneos y **14 partículas** por pelota; las ranuras
+  sobrantes se aparcan fuera de cámara en vez de crearse y destruirse.
+- Martilleando el tablero con 40 toques seguidos: **22,8 ms de script por segundo**
+  (frente a 8,9 ms con la escena quieta) ≈ **0,23 ms por frame** a 60 fps. Nodos DOM
+  218 → 233, heap plano.
+- `prefers-reduced-motion` retira la sacudida y el respirado del aura.
+
+### Validado en navegador (Chrome real con WebGL, por CDP)
+
+390×844 y 360×640, build de producción: las cinco familias vistas en juego con su
+clase correcta (`hitfx-fam-leaf`/`crystal`/`gold`/`magic`), combo x3 con su texto,
+los cuatro escalones de aura con opacidad creciente (0,22 · 0,40 · 0,58 · 0,81) y
+solo el cuarto animado, pausa/reanudar, textos que no capturan toques
+(`pointer-events: none`), limpieza a cero al parar, y **0 errores de consola, 0
+peticiones fallidas, 0 violaciones de CSP**. Misiones, tienda, aspectos, ambientes,
+racha y desafío siguen funcionando.
 
 ## 🔥🏅 Iteración 2026-08-05 (c) — Retención diaria
 

@@ -714,3 +714,86 @@ Y dos trampas del arnés que volvieron a morder:
   invertida, no un `+`): el juego estaba bien y el test daba rojo.
 - Medir desbordes sin devolver el scroll a cero: `scrollIntoView` desplaza
   `.app-frame` aunque tenga `overflow: hidden` y todo sale con `top` negativo.
+
+---
+
+## Iteración 2026-08-07 · v0.6.3 — Impacto del acierto
+
+### La familia es un DATO, no un `if` repartido
+
+`src/data/hitEffects.js` mapea color → familia → perfil (partículas, dispersión,
+tamaño, onda de choque, giro). Todo lo demás —`Ball3D`, `HitFx`, `audioSystem`— lee
+ese perfil. La alternativa (un `switch (color)` en cada sitio) garantizaba que al
+añadir el séptimo color alguien se dejara uno: el efecto saldría bien y el sonido no.
+
+### Las direcciones de las partículas se calculan UNA vez
+
+`FAMILY_DIRS` precomputa, al cargar el módulo, las direcciones de cada familia. Si se
+sortearan por golpe, cada acierto asignaría memoria en mitad de la partida — justo lo
+que dispara recolecciones en móvil. El buffer de la malla instanciada se dimensiona a
+`MAX_PARTICLES` (el tope de TODAS las familias, 14) y las ranuras que una familia no
+usa se aparcan en `z = -9999`: **el tamaño del buffer nunca cambia**, que es lo que
+obligaría a reconstruirlo.
+
+### 🐛 Una variable local tapaba el perfil de familia
+
+En `Ball3D.handleDown` había un `const fx` para el tinte del destello, y el perfil de
+familia también se llama `fx`. La local ganaba dentro de la función, así que el
+destello leía el objeto equivocado. Renombrada a `tint`. Es el tipo de fallo que no
+da error: simplemente el efecto sale genérico.
+
+### 🐛 El texto flotante salía a cientos de píxeles en ESCRITORIO
+
+`Ball3D` manda la posición del toque en coordenadas de VENTANA (`clientX/clientY`),
+pero `HitFx` posiciona dentro de su propia capa. En móvil el marco ocupa la pantalla
+entera y ambas coinciden; en escritorio el marco va centrado con `max-width: 480px`,
+así que el `+150` aparecía desplazado. Se convierten con el `getBoundingClientRect()`
+del contenedor: **una medida por acierto**, no por frame.
+
+### 🐛 …y el PRIMER texto de cada partida salía centrado
+
+`HitFx` devolvía `null` con la lista vacía, así que `boxRef` seguía a `null` justo en
+el primer acierto y la conversión de arriba no podía hacerse. El contenedor se monta
+**siempre**: un `div` absoluto, vacío y sin eventos no cuesta nada.
+
+### Un solo temporizador de barrido, no uno por texto
+
+Con seis textos y un `setTimeout` cada uno, salir al menú a mitad de racha dejaba seis
+temporizadores que había que cancelar de uno en uno. Ahora hay un `setInterval` único
+que solo existe **mientras hay algo en pantalla** (`useEffect` sobre `items.length`).
+
+### El aura va en los BORDES
+
+Un fogonazo a pantalla completa habría bajado la legibilidad de las pelotas justo
+cuando el jugador va más rápido. El aura son dos degradados radiales anclados arriba y
+abajo que **no tocan el centro**, y sube por `opacity` (compositor), no por sombras.
+La sacudida se aplica al contenedor de la escena, **no al canvas**: mover el canvas
+obliga a recomponer su capa.
+
+### Trampas del arnés de validación (nuevas)
+
+- **El bot de visión necesita AGRUPAR por burbujas.** Con el centroide global de los
+  píxeles encendidos, un nivel con 3–4 pelotas activas devuelve un punto **entre**
+  ellas — es decir, el vacío — y el bot no acierta nunca. Se agrupan los píxeles y se
+  elige la burbuja mayor. Sin esto, el nivel 15 daba "0 aciertos" y parecía un bug del
+  juego.
+- **`getComputedStyle` justo tras cambiar de clase devuelve el valor de PARTIDA** si
+  hay una `transition`. Midiendo los cuatro escalones del aura sobre el mismo elemento
+  salía `[0.22, 0.22, 0.22, 0.56]` y parecía que no subían. Con cuatro elementos
+  independientes, cada uno con su clase desde que nace y leídos tras dos frames:
+  `[0.22, 0.40, 0.58, 0.81]`.
+- **Los fps en headless NO miden nada.** Sin GPU (SwiftShader) la escena quieta daba
+  23,5 fps y la escena con los efectos disparándose 46,5 — un "coste negativo" que solo
+  demuestra que el instrumento no sirve. Lo que sí mide es
+  `Performance.getMetrics` (`ScriptDuration`, `RecalcStyleDuration`, `LayoutDuration`),
+  que es trabajo de hilo principal e independiente del rasterizador.
+- **`ms por segundo` no se compara con el presupuesto de un FRAME.** 22,8 ms de script
+  por segundo son ~0,23 ms por frame a 60 fps, no un 137 % de 16,7 ms. La primera
+  versión del check daba rojo por comparar dos unidades distintas.
+- **Los 64 px de "desbordamiento" del marco son de `.app-frame::before`**, que usa
+  `inset: -10%` (10 % de 640) para el halo atmosférico. `overflow: hidden` lo recorta y
+  no captura toques: es decorativo y **pre-existente**, no un fallo. Cualquier check de
+  desborde que mire `scrollHeight - clientHeight` del marco lo verá siempre.
+- **Un check de "efectos que no se limpian" puede estar midiendo el juego vivo.** Al
+  dejar de pulsar, las pelotas siguen apagándose solas y generando avisos «Se apagó»:
+  la cuenta oscilaba entre 1 y 2 para siempre. Con la partida **en pausa** baja a 0.
