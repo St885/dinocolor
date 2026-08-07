@@ -48,6 +48,8 @@ const MESSAGES = {
     'El acceso con cuenta todavía no está configurado. Puedes jugar como invitado.',
   'dinocolor/provider-unavailable': 'Ese método de acceso no está disponible ahora mismo.',
   'dinocolor/load-failed': 'No se pudo cargar el sistema de acceso. Revisa tu conexión.',
+  'dinocolor/csp-blocked':
+    'El navegador bloqueó el login de Google por una política de seguridad. Revisa la CSP.',
 }
 
 /** Mensaje genérico: nunca se enseña un stack trace ni el código crudo. */
@@ -59,8 +61,16 @@ const FALLBACK = 'No hemos podido completar la operación. Inténtalo de nuevo.'
  */
 export function authErrorMessage(error) {
   const code = error && typeof error === 'object' ? error.code : null
-  if (typeof code === 'string' && MESSAGES[code]) return MESSAGES[code]
-  return FALLBACK
+  const base = typeof code === 'string' && MESSAGES[code] ? MESSAGES[code] : FALLBACK
+  // En DESARROLLO se añade el detalle técnico que traiga el error (qué directiva
+  // bloqueó qué origen, por ejemplo). En producción NUNCA: al jugador no le sirve
+  // y es la clase de dato que acaba en una captura de pantalla. `technical` lo
+  // rellena quien crea el error, y solo con datos de configuración — jamás con
+  // correos, tokens ni nada de la cuenta.
+  if (import.meta.env.DEV && error && typeof error === 'object' && error.technical) {
+    return `${base} [${error.technical}]`
+  }
+  return base
 }
 
 /**
@@ -76,9 +86,13 @@ export function isCancellation(error) {
   )
 }
 
-/** Construye un error propio con código, para que lo traduzca el mismo mapa. */
-export function authError(code) {
+/**
+ * Construye un error propio con código, para que lo traduzca el mismo mapa.
+ * `technical` es opcional y SOLO se enseña en desarrollo (ver authErrorMessage).
+ */
+export function authError(code, technical) {
   const err = new Error(MESSAGES[code] || FALLBACK)
   err.code = code
+  if (technical) err.technical = technical
   return err
 }

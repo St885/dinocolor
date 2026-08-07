@@ -28,6 +28,7 @@
 
 import { isAppleEnabled, isFirebaseConfigured, isGoogleEnabled } from './authConfig.js'
 import { authError } from './authErrors.js'
+import { recentCspViolation } from './cspWatch.js'
 import * as firebase from './firebaseProvider.js'
 import {
   clearProfile,
@@ -156,11 +157,31 @@ export function continueAsGuest() {
   return adopt({ ...profile, lastLogin: new Date().toISOString() })
 }
 
+/**
+ * Acceso con proveedor externo, con el fallo de CSP TRADUCIDO.
+ *
+ * Si la CSP bloquea `apis.google.com`, Firebase no ve una causa: su ayudante
+ * simplemente no cargó, y devuelve un `auth/internal-error` que se traduciría a
+ * "Algo falló por nuestro lado" — mandando a buscar el problema donde no está.
+ * Aquí se mira si el navegador acaba de bloquear algo y, en ese caso, se dice la
+ * verdad. Los errores que NO coinciden con una violación reciente pasan intactos:
+ * cerrar el popup sigue siendo "cerraste la ventana", no un fallo de seguridad.
+ */
+async function signInWithExternalProvider(id) {
+  try {
+    return await firebase.signInWithProvider(id)
+  } catch (err) {
+    const csp = recentCspViolation()
+    if (!csp) throw err
+    throw authError('dinocolor/csp-blocked', `${csp.directive} → ${csp.blockedURI}`)
+  }
+}
+
 /** Google. Lanza si el proveedor no está disponible. */
 export async function signInWithGoogle() {
   if (!isFirebaseConfigured) throw authError('dinocolor/not-configured')
   if (!isGoogleEnabled) throw authError('dinocolor/provider-unavailable')
-  const profile = await firebase.signInWithProvider('google')
+  const profile = await signInWithExternalProvider('google')
   // null = se fue por redirect; la sesión llegará por observeSession al volver.
   return profile ? adopt(profile) : null
 }
@@ -169,7 +190,7 @@ export async function signInWithGoogle() {
 export async function signInWithApple() {
   if (!isFirebaseConfigured) throw authError('dinocolor/not-configured')
   if (!isAppleEnabled) throw authError('dinocolor/provider-unavailable')
-  const profile = await firebase.signInWithProvider('apple')
+  const profile = await signInWithExternalProvider('apple')
   return profile ? adopt(profile) : null
 }
 

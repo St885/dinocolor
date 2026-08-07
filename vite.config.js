@@ -49,6 +49,7 @@ function buildCsp(env) {
   // Son blobs del propio documento: no habilita ningún origen externo.
   const connect = ["'self'", 'blob:']
   const frame = []
+  const script = ["'self'"]
   if (hasFirebase) {
     connect.push(
       'https://identitytoolkit.googleapis.com',
@@ -62,11 +63,23 @@ function buildCsp(env) {
       'https://accounts.google.com',
       'https://appleid.apple.com',
     )
+    // `apis.google.com` en script-src — SIN ESTO NO HAY LOGIN CON GOOGLE.
+    // `signInWithPopup` no abre la ventana de Google directamente: primero carga
+    // el ayudante `https://apis.google.com/js/api.js` (gapi), que es quien monta
+    // el iframe oculto contra `<authDomain>/__/auth/iframe` y hace de puente con
+    // la ventana emergente. Con `script-src 'self'` el navegador lo bloquea y el
+    // botón no llega ni a abrir el popup:
+    //   "Loading the script 'https://apis.google.com/js/api.js' violates the
+    //    Content Security Policy directive: script-src 'self'"
+    // Medido con CDP el 2026-08-07. Solo se abre este origen: NO hacen falta
+    // `www.gstatic.com` ni `www.google.com` (los usa reCAPTCHA, que es del
+    // acceso por telefono, y aqui no se usa).
+    script.push('https://apis.google.com')
   }
 
   const directives = [
     "default-src 'self'",
-    "script-src 'self'",
+    `script-src ${script.join(' ')}`,
     "style-src 'self' 'unsafe-inline'",
     // `blob:` NO es decorativo: GLTFLoader guarda las texturas EMBEBIDAS del GLB
     // en un Blob y las carga como `blob:<origen>/<uuid>`. Sin esto, Chrome las
