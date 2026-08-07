@@ -3,7 +3,9 @@
 # Método "artefacto" moderno (configure-pages + upload-pages-artifact + deploy-pages):
 #   - NO versiona dist/ en el repo: el sitio se compila en CI en cada push a main.
 #   - NO usa una rama gh-pages.
-#   - NO usa secretos: el permiso id-token: write habilita el despliegue con OIDC.
+#   - NO usa secretos: el permiso id-token: write habilita el despliegue con OIDC,
+#     y la configuración web de Firebase va en *variables* (`vars`), no en `secrets`
+#     — ver el paso "Build" más abajo.
 #   - Jekyll no interviene con este método, así que .nojekyll es irrelevante aquí.
 #
 # URL resultante: https://st885.github.io/dinocolor/
@@ -43,8 +45,53 @@ jobs:
       - name: Install dependencies (npm ci)
         run: npm ci
 
+      # La configuración web de Firebase entra por AQUÍ, no por el repositorio.
+      #
+      # POR QUÉ EN EL PASO DE BUILD: Vite congela las `VITE_*` dentro del bundle al
+      # compilar. Si no están presentes en ESTE step, `buildCsp` (vite.config.js) ve
+      # un entorno sin Firebase y —por diseño— deja la CSP tan cerrada como antes de
+      # que existiera el login: sin `apis.google.com`, sin orígenes de Firebase. El
+      # sitio publicado quedaba con Google y correo DESHABILITADOS y el aviso de "no
+      # está configurado", aunque en local funcionaran. Pasó de verdad el 2026-08-07.
+      #
+      # POR QUÉ `vars` Y NO `secrets`: esta configuración NO es secreta. Viaja en el
+      # cliente por diseño y Google la considera pública; lo que protege el proyecto
+      # son los Dominios autorizados de Authentication. Meterla en `secrets` solo
+      # serviría para que Actions la enmascare en los logs y para hacer creer que hay
+      # algo que proteger. Las claves PRIVADAS (cuentas de servicio, .p8) no entran
+      # aquí ni en ningún otro sitio de este repositorio.
+      #
+      # Si las variables no existen, el build NO falla: sale un sitio sin acceso con
+      # cuenta y con el modo invitado intacto — exactamente el comportamiento previo.
+      # El paso siguiente lo dice en voz alta para que no vuelva a pasar en silencio.
       - name: Build
         run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          # El `|| 'false'` NO es adorno. authConfig.js activa Apple salvo que valga
+          # exactamente la cadena 'false'; con la variable sin crear llegaría vacía y
+          # Apple saldría HABILITADO en producción, fallando con
+          # `auth/operation-not-allowed` en cuanto alguien lo pulsara. Olvidarse de
+          # crear una variable no puede encender un proveedor.
+          VITE_AUTH_APPLE_ENABLED: ${{ vars.VITE_AUTH_APPLE_ENABLED || 'false' }}
+
+      # Deja constancia en el log de SI el build llevaba configuración, nunca de CUÁL.
+      # Sin esto, un despliegue sin variables se ve idéntico a uno correcto hasta que
+      # alguien abre la pantalla de acceso y encuentra los botones apagados.
+      - name: Check Firebase config reached the build
+        run: |
+          if grep -rqF "${{ vars.VITE_FIREBASE_PROJECT_ID }}" dist/assets/*.js 2>/dev/null \
+             && [ -n "${{ vars.VITE_FIREBASE_PROJECT_ID }}" ]; then
+            echo "Firebase: configurado — el acceso con cuenta estará activo."
+          else
+            echo "Firebase: SIN configurar — se publicará solo con modo invitado."
+            echo "Para activarlo: Settings > Secrets and variables > Actions > Variables."
+          fi
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

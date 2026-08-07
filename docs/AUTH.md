@@ -156,6 +156,56 @@ La solución definitiva es servir el `authDomain` desde el **mismo dominio** que
 juego (Firebase Hosting con dominio propio, o un proxy de `/__/auth/`). Mientras
 tanto, el popup funciona bien en navegador de escritorio y móvil.
 
+### 4.4 Producción en GitHub Pages — las variables del repositorio
+
+**Este es el paso que se olvida.** `.env.local` está en `.gitignore` (y debe seguir
+ahí), así que GitHub Actions **no lo ve**. Sin variables, `buildCsp` decide —por
+diseño— que no hay Firebase y publica un sitio con el acceso con cuenta apagado y
+solo el modo invitado. En local todo funciona y en producción no, sin un solo error
+en consola. Pasó de verdad el 2026-08-07.
+
+La configuración se inyecta en el **paso de build** del workflow
+(`.github/workflows/deploy-pages.yml`), porque Vite congela las `VITE_*` dentro del
+bundle al compilar.
+
+Crea estas **variables** (no secretos) en:
+`Settings` → `Secrets and variables` → `Actions` → pestaña **`Variables`** →
+`New repository variable`
+
+| Variable | Valor |
+|---|---|
+| `VITE_FIREBASE_API_KEY` | *(el de Firebase Console → Configuración del proyecto → Tus apps)* |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `dinocolor-187ba.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | `dinocolor-187ba` |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `dinocolor-187ba.firebasestorage.app` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `471481615587` |
+| `VITE_FIREBASE_APP_ID` | `1:471481615587:web:39da6428db0c43e53f71d6` |
+| `VITE_AUTH_APPLE_ENABLED` | `false` |
+
+**Por qué `Variables` y no `Secrets`.** Esta configuración **no es secreta**: viaja
+en el cliente por diseño y Google la considera pública — de hecho está dentro del
+`.js` que sirve Pages, y ahí la puede leer cualquiera. Lo que protege el proyecto
+son los **Dominios autorizados** de Authentication. Meterla en `Secrets` solo
+serviría para que Actions la enmascare en los logs y para dar a entender que hay
+algo que proteger. Las claves **privadas** (cuentas de servicio, `.p8`) no van aquí
+ni en ningún otro sitio de este repositorio.
+
+**`VITE_AUTH_APPLE_ENABLED=false` no es opcional.** `authConfig.js` anuncia Apple
+salvo que la variable valga exactamente la cadena `'false'`; sin crearla llegaría
+vacía y Apple saldría **habilitado** en producción, fallando con
+`auth/operation-not-allowed` en cuanto alguien lo pulsara. El workflow pone
+`|| 'false'` como red de seguridad, pero conviene crearla de todos modos para que
+el día que Apple esté listo baste con cambiar el valor.
+
+**Dominios autorizados.** Para que el login funcione en Pages, Authentication →
+Settings → Authorized domains debe incluir **`st885.github.io`** (además de
+`localhost`). Si falta, Firebase responde `auth/unauthorized-domain`.
+
+**Cómo saber si funcionó.** El workflow tiene un paso *"Check Firebase config
+reached the build"* que dice en el log si la configuración llegó — sin imprimir
+ningún valor. Un despliegue sin variables se ve idéntico a uno correcto hasta que
+alguien abre la pantalla de acceso; ese paso lo delata antes.
+
 ---
 
 ## 5. Errores: qué ve el jugador
