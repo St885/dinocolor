@@ -2,8 +2,8 @@
  * useRewards.js
  * -----------------------------------------------------------------------------
  * Puente entre React y todo lo que gira alrededor de los huesos 🦴: misiones
- * diarias y racha de entrada (que los dan) e inventario de la tienda (que los
- * gasta).
+ * diarias, racha de entrada y desafío del día (que los dan) e inventario de la
+ * tienda (que los gasta).
  *
  * Los tres viven en el MISMO hook porque comparten un único recurso —el saldo de
  * huesos—. Separarlos obligaría a duplicar ese estado o a pasar callbacks de
@@ -29,7 +29,14 @@ import * as Storage from '../systems/storageSystem.js'
 import { DAILY_COUNT, isKnownMissionId } from '../data/missions.js'
 import { DEFAULT_SKIN, FREE_SKINS, SKINS, getSkin, isKnownSkinId } from '../data/skins.js'
 import { DEFAULT_THEME, FREE_THEMES, THEMES, getTheme, isKnownThemeId } from '../data/themes.js'
+import { isKnownChallengeId } from '../data/dailyChallenges.js'
 import { applyRun, dayKey, describe, pickDailyMissions } from '../systems/missionSystem.js'
+import {
+  applyRunToChallenge,
+  describeChallenge,
+  pickChallenge,
+  pickChallengeLevel,
+} from '../systems/dailyChallengeSystem.js'
 import { claimStreak, describeStreak, streakState } from '../systems/dailyStreakSystem.js'
 import { canBuy, canEquip } from '../systems/inventorySystem.js'
 import { computeRunReward } from '../systems/rewardSystem.js'
@@ -51,16 +58,42 @@ function loadOrCreateDaily() {
   return fresh
 }
 
+/**
+ * Lee el desafío del día, creándolo si falta o si el guardado no es coherente.
+ * El nivel de los retos que apuntan a uno concreto se elige AQUÍ (una sola vez al
+ * día) y se guarda: recalcularlo en cada render haría que desbloquear un nivel a
+ * media tarde cambiara el reto en marcha.
+ */
+function loadOrCreateChallenge() {
+  const day = dayKey()
+  const stored = Storage.readChallenge(day, isKnownChallengeId)
+  if (stored) return stored
+
+  const id = pickChallenge(day)
+  const needsLevel = ['levelPerfect'].includes(id)
+  const fresh = {
+    day,
+    id,
+    level: needsLevel ? pickChallengeLevel(day, Storage.getMaxLevel()) : 0,
+    progress: 0,
+    done: false,
+  }
+  Storage.writeChallenge(fresh)
+  return fresh
+}
+
 export function useRewards() {
   const [bones, setBones] = useState(() => Storage.getBones())
   const [daily, setDaily] = useState(loadOrCreateDaily)
 
   const [streakSaved, setStreakSaved] = useState(() => Storage.readStreak())
+  const [challengeSaved, setChallengeSaved] = useState(loadOrCreateChallenge)
 
-  /** Si ha cambiado el día, renueva las misiones. Idempotente y barato. */
+  /** Si ha cambiado el día, renueva misiones y desafío. Idempotente y barato. */
   const refreshDay = useCallback(() => {
     const hoy = dayKey()
     setDaily((current) => (current.day === hoy ? current : loadOrCreateDaily()))
+    setChallengeSaved((current) => (current.day === hoy ? current : loadOrCreateChallenge()))
     // La racha no se "renueva": se recalcula sola a partir de la fecha del último
     // cobro, así que basta con volver a leerla para que el botón se reactive.
     setStreakSaved(Storage.readStreak())
@@ -107,16 +140,34 @@ export function useRewards() {
     Storage.writeDaily(next)
     setDaily(next)
 
-    // Huesos: los de la partida + los de las misiones recién completadas.
+    // Desafío del día. Se lee del ALMACENAMIENTO, no del estado de React: si el
+    // día cambió con el juego abierto, el estado podría ir un paso por detrás y el
+    // progreso se apuntaría en el reto de ayer.
+    const chalBase = Storage.readChallenge(day, isKnownChallengeId) || loadOrCreateChallenge()
+    const chal = applyRunToChallenge(chalBase, run)
+    const chalNext = { ...chalBase, progress: chal.progress, done: chal.done }
+    Storage.writeChallenge(chalNext)
+    setChallengeSaved(chalNext)
+
+    // Huesos: los de la partida + misiones recién completadas + desafío.
     const runReward = computeRunReward(run)
     const parts = [...runReward.parts]
     applied.completed.forEach((m) => {
       parts.push({ icon: m.icon, label: `Misión: ${m.text}`, amount: m.reward })
     })
-    const total = runReward.total + applied.bones
+    const challengeInfo = describeChallenge(chalNext)
+    if (chal.justCompleted && chal.reward > 0) {
+      parts.push({ icon: '🏅', label: `Desafío: ${challengeInfo?.text || 'completado'}`, amount: chal.reward })
+    }
+    const total = runReward.total + applied.bones + chal.reward
     if (total > 0) setBones(Storage.addBones(total))
 
-    return { total, parts, missions: applied.completed }
+    return {
+      total,
+      parts,
+      missions: applied.completed,
+      challengeDone: chal.justCompleted,
+    }
   }, [])
 
   /** Misiones del día ya resueltas contra el catálogo, listas para pintar. */
@@ -146,6 +197,8 @@ export function useRewards() {
     const state = streakState(streakSaved)
     return { ...state, days: describeStreak(state) }
   }, [streakSaved])
+
+  const challenge = useMemo(() => describeChallenge(challengeSaved), [challengeSaved])
 
   // --- Inventario de la tienda ------------------------------------------------
   //
@@ -243,6 +296,7 @@ export function useRewards() {
     // Retención diaria
     streak,
     claimDailyStreak,
+    challenge,
     // Tienda
     skins: SKINS,
     themes: THEMES,

@@ -30,8 +30,12 @@ export function dayKey(date = new Date()) {
 /**
  * Hash entero estable de una cadena (variante de djb2). Determinista: el mismo día
  * da siempre las mismas misiones, aunque el jugador recargue o cambie de pestaña.
+ *
+ * Se EXPORTA para que el desafío diario elija con el mismo criterio en vez de
+ * llevar su propia copia: dos funciones de hash distintas serían dos cosas que
+ * mantener sincronizadas sin ninguna ventaja.
  */
-function hash(str) {
+export function dayHash(str) {
   let h = 5381
   for (let i = 0; i < str.length; i++) {
     h = ((h << 5) + h + str.charCodeAt(i)) >>> 0
@@ -50,7 +54,7 @@ function hash(str) {
 export function pickDailyMissions(key) {
   const n = MISSION_POOL.length
   const count = Math.min(DAILY_COUNT, n)
-  const h = hash(key)
+  const h = dayHash(key)
   const start = h % n
   // Paso coprimo con n: se busca el primero que lo sea, empezando en un impar.
   let step = (h % (n - 1)) + 1

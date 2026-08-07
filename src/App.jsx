@@ -20,7 +20,7 @@
  * -----------------------------------------------------------------------------
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MobileLayout from './components/layout/MobileLayout.jsx'
 import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import StartScene from './scenes/StartScene.jsx'
@@ -69,11 +69,28 @@ export default function App() {
     if (scene === 'auth' && !auth.isLoading && auth.isSignedIn) setScene('menu')
   }, [scene, auth.isLoading, auth.isSignedIn])
 
+  /**
+   * "Ir al reto": si el desafío apunta a un nivel concreto va a ese; si es
+   * general, al nivel por el que va el jugador. Nunca deja al jugador con la duda
+   * de dónde se hace el reto.
+   */
+  const handleGoChallenge = useCallback(
+    (levelId) => {
+      const objetivo = levelId && progress.isUnlocked(levelId) ? levelId : progress.maxLevel
+      startLevelRef.current(objetivo)
+    },
+    [progress],
+  )
+
   /** Cierra la sesión y devuelve al jugador a la portada. El progreso NO se toca. */
   const handleSignOut = useCallback(() => {
     signOut()
     setScene('start')
   }, [])
+
+  // Ref a `startLevel` para que `handleGoChallenge` (definido antes) pueda
+  // llamarlo sin reordenar el componente ni crear una dependencia circular.
+  const startLevelRef = useRef(() => {})
 
   const startLevel = useCallback((levelId) => {
     const level = getLevelById(levelId) || getFirstLevel()
@@ -81,6 +98,7 @@ export default function App() {
     setRunId((n) => n + 1)
     setScene('game')
   }, [])
+  startLevelRef.current = startLevel
 
   const handleFinish = useCallback(
     (result) => {
@@ -105,6 +123,9 @@ export default function App() {
       // Misiones diarias y huesos. Va DESPUÉS de guardar el progreso para que
       // `isRecord` y `previousStars` ya reflejen la realidad, y se llama una sola
       // vez por partida (la pantalla de resultado solo lee el desglose).
+      // El desafío del día mide cosas que las misiones no miran (precisión,
+      // rapidez, qué nivel se jugó), así que el resumen de la partida viaja
+      // completo. Añadir campos es seguro: `progressFromRun` ignora lo que no usa.
       const reward = rewards.registerRun({
         won,
         stars,
@@ -112,6 +133,10 @@ export default function App() {
         isRecord: levelResult.isRecord,
         bestCombo: result.bestCombo,
         misses: result.misses,
+        hits: result.hits,
+        timeLeft: result.timeLeft,
+        totalTime: result.totalTime,
+        levelId: result.levelId,
       })
 
       setLastResult({
@@ -196,6 +221,8 @@ export default function App() {
             shopReady={shopReady}
             streak={rewards.streak}
             onClaimStreak={rewards.claimDailyStreak}
+            challenge={rewards.challenge}
+            onGoChallenge={handleGoChallenge}
           />
         )}
 

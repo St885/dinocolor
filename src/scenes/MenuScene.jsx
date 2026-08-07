@@ -21,6 +21,7 @@ import ProgressBar from '../components/ui/ProgressBar.jsx'
 import LevelStars from '../components/ui/LevelStars.jsx'
 import AccountChip from '../components/auth/AccountChip.jsx'
 import DailyMissions from '../components/game/DailyMissions.jsx'
+import DailyChallenge from '../components/game/DailyChallenge.jsx'
 import { DailyStreakModal, DailyStreakStrip } from '../components/game/DailyStreak.jsx'
 import { getAllLevels } from '../systems/levelSystem.js'
 import { unlock } from '../systems/audioSystem.js'
@@ -54,6 +55,8 @@ export default function MenuScene({
   shopReady = 0,
   streak = null,
   onClaimStreak = () => null,
+  challenge = null,
+  onGoChallenge = () => {},
 }) {
   /**
    * El modal de racha se abre SOLO si hoy hay algo que cobrar, y una vez por
@@ -198,6 +201,8 @@ export default function MenuScene({
             pero no roban altura permanente a la rejilla de niveles ni empujan el
             botón "Continuar", que sigue anclado abajo. */}
         {streak && <DailyStreakStrip streak={streak} onOpen={() => setStreakOpen(true)} />}
+
+        <DailyChallenge challenge={challenge} onGo={onGoChallenge} />
 
         <DailyMissions missions={missions} done={missionsDone} />
 

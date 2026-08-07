@@ -34,10 +34,15 @@ const KEYS = {
   skinEquipped: 'dinocolor.shop.skin',
   themesOwned: 'dinocolor.shop.themes',
   themeEquipped: 'dinocolor.shop.theme',
-  // v0.6.2 — retención diaria: racha de entrada.
+  // v0.6.2 — retención diaria: racha de entrada y desafío del día.
   streakLastDay: 'dinocolor.streak.day',
   streakDay: 'dinocolor.streak.n',
   streakTotal: 'dinocolor.streak.total',
+  chalDay: 'dinocolor.chal.day',
+  chalId: 'dinocolor.chal.id',
+  chalLevel: 'dinocolor.chal.level',
+  chalProgress: 'dinocolor.chal.progress',
+  chalDone: 'dinocolor.chal.done',
 }
 
 /** Prefijo de las claves de récord POR NIVEL (`dinocolor.best.7`). */
@@ -367,6 +372,36 @@ export function writeStreak({ lastDay, day, total }) {
   writeRaw(KEYS.streakLastDay, String(lastDay || ''))
   writeRaw(KEYS.streakDay, String(Math.max(1, Math.floor(day) || 1)))
   writeRaw(KEYS.streakTotal, String(Math.max(0, Math.floor(total) || 0)))
+}
+
+// --- Desafío del día (v0.6.2) ------------------------------------------------
+//
+// Mismo criterio que las misiones: si el día no coincide o el id no está en el
+// catálogo, se descarta el bloque ENTERO y se genera uno nuevo. Devolver null es
+// la señal de "regenera", no un error.
+
+export function readChallenge(expectedDay, isKnownId) {
+  const day = String(readRaw(KEYS.chalDay) || '')
+  if (!DAY_RE.test(day) || day !== expectedDay) return null
+  const id = String(readRaw(KEYS.chalId) || '').trim()
+  if (!id || !isKnownId(id)) return null
+  const level = parseInt(readRaw(KEYS.chalLevel), 10)
+  const progress = parseInt(readRaw(KEYS.chalProgress), 10)
+  return {
+    day,
+    id,
+    level: Number.isFinite(level) && level >= 0 ? Math.min(level, 9999) : 0,
+    progress: Number.isFinite(progress) && progress >= 0 ? Math.min(progress, 9999) : 0,
+    done: readRaw(KEYS.chalDone) === '1',
+  }
+}
+
+export function writeChallenge({ day, id, level, progress, done }) {
+  writeRaw(KEYS.chalDay, String(day))
+  writeRaw(KEYS.chalId, String(id))
+  writeRaw(KEYS.chalLevel, String(Math.max(0, Math.floor(level) || 0)))
+  writeRaw(KEYS.chalProgress, String(Math.max(0, Math.floor(progress) || 0)))
+  writeRaw(KEYS.chalDone, done ? '1' : '0')
 }
 
 // --- Tutorial ----------------------------------------------------------------
