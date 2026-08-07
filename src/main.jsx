@@ -19,6 +19,9 @@ import '../styles/shop.css'
 // daily.css solo añade clases nuevas y CONSUME variables (no las redefine), así
 // que su posición no afecta a los ambientes.
 import '../styles/daily.css'
+// fx.css solo añade clases nuevas para el feedback de la partida y CONSUME
+// variables; su posición no afecta a los ambientes.
+import '../styles/fx.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

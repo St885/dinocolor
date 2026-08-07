@@ -1,0 +1,125 @@
+/* =============================================================================
+   fx.css — feedback de acierto y fallo (v0.6.3)
+
+   Reglas de rendimiento que sigue TODO este archivo (ver dinocolor-performance):
+     · se anima `transform` y `opacity`, nunca `left`/`top`/`width`
+     · ninguna sombra grande animada a pantalla completa
+     · ninguna animación infinita sobre el canvas de la partida salvo el aura de
+       combo, que es un degradado en los BORDES y no toca el centro del tablero
+   ========================================================================== */
+
+/* ============================ Textos flotantes ============================ */
+.hitfx {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  /* Nunca roba un toque al tablero: es puramente decorativo. */
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hitfx-item {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  /* `translate(-50%, -50%)` centra el texto en el punto del toque; la animación
+     parte de ahí, así que la posición nunca se recalcula por frame. */
+  transform: translate(-50%, -50%);
+  font-family: var(--font);
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--fx-color, var(--c-green));
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.45),
+    0 0 14px color-mix(in srgb, var(--fx-color, #54ff9d) 60%, transparent);
+  animation: hitfx-rise 0.9s cubic-bezier(0.18, 0.9, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Sube y se desvanece. La escala inicial le da el "golpe" del acierto. */
+@keyframes hitfx-rise {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  18% { opacity: 1; transform: translate(-50%, -60%) scale(1.12); }
+  40% { transform: translate(-50%, -74%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -128%) scale(0.96); }
+}
+
+.hitfx-item--hit { font-size: clamp(1.1rem, 5vw, 1.45rem); }
+.hitfx-item--fast { font-size: clamp(1.3rem, 6vw, 1.75rem); }
+.hitfx-item--tag {
+  font-size: clamp(0.72rem, 3.2vw, 0.88rem);
+  letter-spacing: 1.2px;
+  opacity: 0.95;
+}
+.hitfx-item--combo {
+  font-size: clamp(0.95rem, 4.4vw, 1.2rem);
+  letter-spacing: 1px;
+  color: var(--c-gold);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5), 0 0 18px rgba(255, 178, 46, 0.7);
+}
+.hitfx-item--bad {
+  font-size: clamp(0.9rem, 4vw, 1.1rem);
+  color: #ff9d6b;
+  /* Cae en vez de subir: el fallo no "premia", pero tampoco castiga con estridencia. */
+  animation: hitfx-drop 0.9s ease-out both;
+}
+@keyframes hitfx-drop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  20% { opacity: 1; transform: translate(-50%, -44%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -18%) scale(0.96); }
+}
+
+/* Matices por familia: el TONO lo pone el nivel (--fx-color); aquí solo se ajusta
+   el carácter tipográfico para que cada tramo se sienta distinto. */
+.hitfx-fam-crystal { letter-spacing: 1.5px; }
+.hitfx-fam-gold { text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 210, 63, 0.85); }
+.hitfx-fam-ember { font-style: italic; }
+.hitfx-fam-magic { letter-spacing: 2px; }
+
+/* ============================ Aura de combo ============================ */
+/* Un marco de luz en los BORDES de la pantalla. No toca el centro, así que nunca
+   compite con las pelotas ni baja su legibilidad. Es un degradado estático cuya
+   opacidad sube por escalón; solo el escalón alto respira, y lo hace con
+   `opacity` (compositor), no con sombras. */
+.combo-aura {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  background:
+    radial-gradient(120% 42% at 50% 0%, var(--combo-glow, rgba(84, 255, 157, 0.5)), transparent 62%),
+    radial-gradient(120% 42% at 50% 100%, var(--combo-glow, rgba(84, 255, 157, 0.5)), transparent 62%);
+}
+.combo-aura--1 { opacity: 0.22; }
+.combo-aura--2 { opacity: 0.4; }
+.combo-aura--3 { opacity: 0.58; }
+.combo-aura--4 {
+  opacity: 0.72;
+  animation: combo-breath 1.6s ease-in-out infinite;
+}
+@keyframes combo-breath {
+  0%, 100% { opacity: 0.56; }
+  50% { opacity: 0.82; }
+}
+
+/* ============================ Sacudida al fallar ============================ */
+/* Se aplica al CONTENEDOR de la escena, no al canvas: mover el canvas obligaría a
+   recomponer su capa. Un `translate` de 4 px basta para que se note sin marear. */
+.scene--game.is-shaking {
+  animation: fx-shake 0.28s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes fx-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  45% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+}
+
+/* Quien haya pedido menos movimiento recibe el feedback sin sacudidas ni subidas:
+   global.css ya reduce las duraciones, pero la sacudida se retira del todo. */
+@media (prefers-reduced-motion: reduce) {
+  .scene--game.is-shaking { animation: none; }
+  .combo-aura--4 { animation: none; }
+}

@@ -6,8 +6,14 @@
  *     sombra de contacto.
  *   - Activa: cuerpo brillante del color del nivel + GLOW CIRCULAR suave detrás
  *     (disco de degradado radial, sin aros duros) + pulso + anillo de foco giratorio.
- *   - Feedback al pulsar: disco de destello que se expande y desvanece + chispas
+ *   - Feedback al pulsar: disco de destello + chispas + ONDA EXPANSIVA
  *     (color del nivel = acierto, naranja = fallo).
+ *
+ * EFECTOS POR FAMILIA DE COLOR (v0.6.3): cuántas chispas salen, a qué velocidad,
+ * si giran en espiral y cuánto se abre la onda lo decide `src/data/hitEffects.js`
+ * a partir del color del nivel. El COLOR no se toca: es información de juego.
+ * Las tablas de direcciones se precalculan por familia a nivel de módulo, así que
+ * un estallido no reserva memoria ni recorre nada que no vaya a dibujar.
  *
  * RENDIMIENTO:
  *
@@ -36,6 +42,7 @@
 import { memo, useCallback, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { FAMILY_DIRS, MAX_PARTICLES, familyForColor } from '../../data/hitEffects.js'
 
 const IDLE_COLOR = new THREE.Color('#b3c2d0') // gris azulado metálico (premium)
 const BLACK = new THREE.Color('#000000')
@@ -70,28 +77,26 @@ function glowTexture() {
   return _glowTex
 }
 
-const PART_N = 9
-
-/** Direcciones de las chispas: idénticas para todas las pelotas -> una sola tabla. */
-const PART_DIRS = (() => {
-  const d = []
-  for (let i = 0; i < PART_N; i++) {
-    const a = (i / PART_N) * Math.PI * 2 + (i % 2 ? 0.3 : -0.2)
-    const sp = 0.85 + (i % 3) * 0.18
-    d.push([Math.cos(a) * sp, Math.sin(a) * sp, i % 2 ? 0.25 : -0.12])
-  }
-  return d
-})()
+// El buffer se dimensiona al TOPE de todas las familias y cada una usa solo sus
+// primeras N posiciones: así cambiar de nivel (y de familia) no recrea geometría.
+// Las que sobran se aparcan lejos de cámara en vez de dibujarse encima.
+const PART_N = MAX_PARTICLES
 
 function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap }) {
+  // Perfil de efecto del color actual. Memoizado por color: cambia una vez por
+  // nivel, no por frame ni por acierto.
+  const fx = useMemo(() => familyForColor(color), [color])
+  const dirs = useMemo(() => FAMILY_DIRS[fx.id], [fx])
   const meshRef = useRef()
   const matRef = useRef()
   const glowRef = useRef()
   const haloRef = useRef()
   const ringRef = useRef()
   const burstRef = useRef()
+  const shockRef = useRef()
   const pressRef = useRef(0)
   const burst0 = useRef(0)
+  const shock0 = useRef(0)
   const tex = useMemo(() => glowTexture(), [])
 
   const { emissiveColor, baseColor } = useMemo(() => {
@@ -124,7 +129,14 @@ function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap 
     const mat = matRef.current
     if (!mesh || !mat) return
 
-    if (!active && idleRef.current && pressRef.current <= 0 && burst0.current <= 0 && part0.current <= 0) {
+    if (
+      !active &&
+      idleRef.current &&
+      pressRef.current <= 0 &&
+      burst0.current <= 0 &&
+      part0.current <= 0 &&
+      shock0.current <= 0
+    ) {
       return
     }
 
@@ -180,7 +192,7 @@ function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap 
     if (burst) {
       const p = (burst0.current = Math.max(0, burst0.current - delta * 2.6))
       if (p > 0) {
-        const s = radius * (2.2 + (1 - p) * 2.4)
+        const s = radius * (fx.burst + (1 - p) * 2.4)
         burst.scale.set(s, s, s)
         burst.material.opacity = p * 0.8
         burst.visible = true
@@ -189,21 +201,49 @@ function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap 
       }
     }
 
+    // ONDA EXPANSIVA: un anillo que se abre y se desvanece. Es lo que separa de un
+    // vistazo una familia de otra (el cian abre mucho y despacio; la brasa, poco y
+    // rápido). Reutiliza la geometría de anillo COMPARTIDA: cero coste de memoria.
+    const shock = shockRef.current
+    if (shock) {
+      const p = (shock0.current = Math.max(0, shock0.current - delta * fx.shockDecay))
+      if (p > 0) {
+        const s = radius * (1.3 + (1 - p) * fx.shock)
+        shock.scale.set(s, s, s)
+        // Se desvanece con el cuadrado: arranca marcada y se va rápido al final,
+        // que es como se lee una onda de verdad.
+        shock.material.opacity = p * p * 0.7
+        shock.visible = true
+      } else if (shock.visible) {
+        shock.visible = false
+      }
+    }
+
     // Chispas al pulsar.
     const parts = partRef.current
     if (parts) {
-      const p = (part0.current = Math.max(0, part0.current - delta * 2.2))
+      const p = (part0.current = Math.max(0, part0.current - delta * fx.decay))
       if (p > 0) {
-        const spread = radius * 2.9 * (1 - p)
-        for (let i = 0; i < PART_N; i++) {
-          const d = PART_DIRS[i]
-          partPos[i * 3] = d[0] * spread
-          partPos[i * 3 + 1] = d[1] * spread
+        const spread = radius * fx.spread * (1 - p)
+        const n = dirs.length
+        // Espiral: las chispas de la familia "magic" giran mientras se alejan.
+        const rot = fx.swirl ? (1 - p) * fx.swirl : 0
+        const cos = rot ? Math.cos(rot) : 1
+        const sin = rot ? Math.sin(rot) : 0
+        for (let i = 0; i < n; i++) {
+          const d = dirs[i]
+          const dx = rot ? d[0] * cos - d[1] * sin : d[0]
+          const dy = rot ? d[0] * sin + d[1] * cos : d[1]
+          partPos[i * 3] = dx * spread
+          partPos[i * 3 + 1] = dy * spread
           partPos[i * 3 + 2] = d[2] * spread
         }
+        // Las posiciones que esta familia no usa se aparcan detrás de la cámara
+        // en vez de quedarse donde las dejó la familia anterior.
+        for (let i = n; i < PART_N; i++) partPos[i * 3 + 2] = -9999
         parts.geometry.attributes.position.needsUpdate = true
         parts.material.opacity = p
-        parts.material.size = radius * (0.42 + p * 0.32)
+        parts.material.size = radius * (fx.size * 0.8 + p * fx.size * 0.7)
         parts.visible = true
       } else if (parts.visible) {
         parts.visible = false
@@ -231,10 +271,15 @@ function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap 
       pressRef.current = 1
       burst0.current = 1
       part0.current = 1
-      const fx = active ? emissiveColor : MISS_COLOR
-      if (burstRef.current) burstRef.current.material.color.copy(fx)
-      if (partRef.current) partRef.current.material.color.copy(fx)
-      onTap && onTap(id)
+      shock0.current = 1
+      const tint = active ? emissiveColor : MISS_COLOR
+      if (burstRef.current) burstRef.current.material.color.copy(tint)
+      if (partRef.current) partRef.current.material.color.copy(tint)
+      if (shockRef.current) shockRef.current.material.color.copy(tint)
+      // La POSICIÓN EN PANTALLA del toque viaja con el evento: es lo que permite
+      // que el "+100" salga justo encima de la pelota tocada sin que nadie tenga
+      // que proyectar coordenadas 3D a 2D por su cuenta.
+      onTap && onTap(id, { x: e.clientX, y: e.clientY })
     },
     [active, emissiveColor, onTap, id],
   )
@@ -298,6 +343,19 @@ function Ball3D({ id, position, active, color = '#39ff88', radius = 0.52, onTap 
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           depthTest={false}
+        />
+      </mesh>
+
+      {/* Onda expansiva del toque (anillo que se abre) */}
+      <mesh ref={shockRef} geometry={RING_GEOM} position={[0, 0, 0.45]} visible={false}>
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={0}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          depthTest={false}
+          side={THREE.DoubleSide}
         />
       </mesh>
 
