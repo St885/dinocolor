@@ -60,6 +60,22 @@ Namespaced bajo `dinocolor.` (ver `src/systems/storageSystem.js`). **Solo progre
 | `dinocolor.shop.skin` | id | aspecto equipado |
 | `dinocolor.shop.themes` | ids separados por `\|` | ambientes desbloqueados |
 | `dinocolor.shop.theme` | id | ambiente equipado |
+| `dinocolor.streak.day` | `'YYYY-MM-DD'` local | día del último cobro de racha (v0.6.2) |
+| `dinocolor.streak.n` | entero 1..7 | día del ciclo de racha |
+| `dinocolor.streak.total` | entero ≥ 0 | reclamaciones acumuladas |
+| `dinocolor.chal.day` | `'YYYY-MM-DD'` local | día del desafío vigente |
+| `dinocolor.chal.id` · `.level` · `.progress` · `.done` | id · entero · entero · `0`/`1` | desafío del día |
+
+**Racha y desafío (v0.6.2):** la fecha se valida contra `^\d{4}-\d{2}-\d{2}$`;
+cualquier otra cosa cuenta como "sin fecha" y la racha empieza de cero. El día
+del ciclo se clampa a 1..7 y el total a 0..99999. El desafío se descarta entero
+(y se regenera) si el día no coincide o el id no está en el catálogo.
+
+**El reloj del dispositivo no es de fiar**, y se asume: cambiarlo solo puede
+hacer que hoy cuente como ya reclamado (no se paga dos veces), que la racha se
+reinicie (se pierde progreso, nunca se gana de más) o que avance un día. Nada de
+eso genera huesos negativos ni rompe el juego. Es hacerse trampas a uno mismo,
+igual que editar el resto del progreso.
 
 **Inventario de la tienda:** los ids se validan contra el catálogo AL LEER; los que
 no existan (guardado antiguo o manipulado) se descartan en silencio. Y lo *equipado*

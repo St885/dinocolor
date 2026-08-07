@@ -643,3 +643,74 @@ Si añades un color de interfaz, **úsalo desde una variable**. Los que iban esc
 mano en verde (la pestaña de capítulo activa, la sombra inferior del botón primario)
 se quedaban descolgados al equipar un ambiente neón o volcánico, y hubo que ir a
 buscarlos uno a uno.
+
+---
+
+## Iteración 2026-08-05 (c) · v0.6.2 — Racha diaria y desafío del día
+
+### La racha se DEDUCE, no se incrementa
+
+`streakState` calcula todo a partir de la **fecha del último cobro**: si es hoy,
+ya está cobrada; si es ayer, la racha encadena; cualquier otra cosa la reinicia.
+No hay ningún contador que avance solo, así que no hace falta que nada corra en
+segundo plano ni que el jugador abra el juego para "no perder" nada más que la
+propia racha.
+
+**`previousDayKey` resta un día a un `Date` en hora LOCAL, no 86.400 segundos a un
+timestamp.** Con el cambio de hora hay días de 23 y de 25 horas: la resta de
+segundos se saltaría o repetiría una fecha justo esa noche y el jugador perdería
+la racha sin haber hecho nada mal.
+
+**El reloj del dispositivo no es de fiar y se asume.** Tocarlo solo puede provocar
+tres cosas, todas seguras: que hoy cuente como ya reclamado (no se paga dos
+veces), que la racha se reinicie (se pierde progreso, nunca se gana de más) o que
+avance un día. La guarda real está en `claimStreak`, que devuelve `null` si hoy ya
+se cobró — ni una doble pulsación ni un estado de React desfasado pueden pagar
+dos veces, porque relee del almacenamiento antes de decidir.
+
+### Por qué modal y no panel
+
+En 360×640 la zona con scroll del menú mide **134 px** (lo fija el cromo: cabecera,
+chip de sesión, panel de progreso, capítulos y el botón anclado). Un panel
+permanente de racha —siete casillas más botón— se habría comido la lista de
+niveles. Y al revés: una recompensa esperando bajo un scroll no la reclama nadie.
+
+El modal se abre **solo cuando hay algo que cobrar** y **una vez por visita al
+menú**: si el jugador lo cierra sin reclamar, no vuelve a saltarle a la cara cada
+vez que entra y sale de un nivel. El resto del día la información vive en una
+tira de 40 px que también lo reabre.
+
+### El desafío no puede repetir una misión
+
+Las misiones ya piden "combo de x5", "un nivel sin fallar", "3 estrellas en un
+nivel" y "supera tu récord". Si el desafío repitiera cualquiera de esos, **una
+sola partida marcaría las dos cosas** y el reto del día dejaría de sentirse
+especial. Todos los del catálogo suben el listón (x8 en vez de x5, dos niveles en
+vez de uno) o miden algo que las misiones no miran (precisión, rapidez).
+
+**El nivel de los retos dirigidos se elige UNA vez al día y se guarda.** Si se
+recalculara en cada render a partir de `maxLevel`, desbloquear un nivel a media
+tarde cambiaría el reto en marcha bajo los pies del jugador.
+
+`pickChallenge` desplaza el hash con un sufijo (`#challenge`) distinto al de las
+misiones: con la misma semilla, ambos sorteos quedarían correlacionados y el mismo
+día tenderían a caer siempre las mismas parejas.
+
+### Un solo "día" para todo el juego
+
+`dayKey` y `dayHash` viven en `missionSystem` y los importan racha y desafío. Si
+cada sistema tuviera su propio cálculo de fecha, un día podrían renovarse las
+misiones y el desafío no (o al revés) — justo la clase de incoherencia que el
+jugador nota. Por eso `dayHash` pasó de privada a exportada en esta iteración.
+
+### Al validar con CDP
+
+Para simular "saltar días" **no hace falta tocar el reloj de la máquina**: basta
+con escribir en `dinocolor.streak.day` una fecha de hace N días. Desde el punto de
+vista del sistema es exactamente lo mismo, y no deja la máquina en un estado raro.
+
+Y dos trampas del arnés que volvieron a morder:
+- Escapar de más en una regex dentro de una plantilla (`/\\+30/` busca una barra
+  invertida, no un `+`): el juego estaba bien y el test daba rojo.
+- Medir desbordes sin devolver el scroll a cero: `scrollIntoView` desplaza
+  `.app-frame` aunque tenga `overflow: hidden` y todo sale con `top` negativo.

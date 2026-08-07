@@ -35,6 +35,16 @@ Android con **Capacitor** y desplegarse en **GitHub Pages**.
   sin fallar…). Se renuevan a tu medianoche local, funcionan **sin conexión y en modo
   invitado**, y su recompensa se cobra sola al terminar la partida.
 
+### 🔥 Racha diaria y 🏅 desafío del día
+
+- **Racha:** entra cada día y reclama tu recompensa. Siete días seguidos suben de
+  20 a **180 huesos**; si te saltas un día, la racha vuelve a empezar.
+- **Desafío de hoy:** un reto especial distinto cada día (un combo de x8, dos
+  niveles sin fallar, ganar con 85 % de precisión…), mejor pagado que las
+  misiones. El botón te lleva directo a donde hacerlo.
+
+Ambos son **locales**: funcionan sin conexión, sin cuenta y en modo invitado.
+
 ### 🛍️ Tienda
 
 Los huesos se gastan en la tienda (se entra desde el contador de huesos del menú):

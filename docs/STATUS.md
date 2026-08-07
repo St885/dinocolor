@@ -2,9 +2,61 @@
 
 > Estado del proyecto. Actualizar al cerrar cada iteración.
 
-**Versión:** 0.6.1 — tienda local, aspectos y ambientes
+**Versión:** 0.6.2 — racha diaria y desafío del día
 **Fecha:** 2026-08-05
 **Stack:** React 18 + Vite 5 + Three.js + @react-three/fiber (JavaScript/JSX) + Firebase Auth (carga diferida)
+
+---
+
+## 🔥🏅 Iteración 2026-08-05 (c) — Retención diaria
+
+Dos motivos nuevos para volver mañana. Sin dependencias nuevas, sin Firebase y
+sin tocar la mecánica.
+
+### Racha diaria (7 días)
+
+Ciclo de siete días que **se reinicia** al completarse (20·30·40·50·70·90·**180**
+huesos; el séptimo lleva 60 de bonus). Se eligió el ciclo frente a "quedarse fijo
+en el día 7" porque es lo más simple de enseñar: siete casillas, se ve dónde
+estás y el premio gordo vuelve cada semana.
+
+**La racha se deduce de la FECHA del último cobro**, nunca de un contador que se
+incremente solo. Si el jugador no abre el juego en tres días, el sistema lo sabe
+al volver — no hace falta que nada corra en segundo plano.
+
+**UI: modal al entrar, tira el resto del día.** En 360×640 la zona con scroll del
+menú mide 134 px: un panel permanente de racha se habría comido la lista de
+niveles, y una recompensa escondida bajo un scroll no la reclama nadie. El modal
+aparece solo cuando hay algo que cobrar (con su ✕, no bloquea) y luego queda una
+tira de 40 px con las siete casillas y el «Vuelve mañana · +30 🦴».
+
+### Desafío del día
+
+Uno solo, más exigente que una misión y mejor pagado (65–90 huesos), elegido de
+forma determinista por la fecha. **Ninguno repite un objetivo de las misiones**:
+donde ellas piden un combo de x5, el desafío pide x8; donde piden un nivel sin
+fallar, pide dos; y añade cosas que las misiones no miran (precisión ≥ 85 %,
+ganar con más del 70 % del tiempo de sobra).
+
+El único que apunta a un **nivel concreto** lo elige entre los desbloqueados y lo
+**guarda**: recalcularlo en cada render haría que desbloquear un nivel a media
+tarde cambiara el reto en marcha. El botón lleva a ese nivel; si el reto es
+general, al nivel por el que va el jugador.
+
+### Integración
+
+Los huesos de la racha y del desafío entran por el mismo sitio que el resto
+(`useRewards` → `Storage.addBones`), y el desafío aparece como una ficha más en
+el desglose de la pantalla de resultado. Sonido de recompensa al reclamar.
+
+### Validación
+
+`npm run build` verde. Los 35 puntos en Chrome real (390×844 y 360×640):
+reclamar suma, **no se puede reclamar dos veces**, **saltar 1 día avanza** la
+racha (+30) y **saltar 3 la reinicia** (+20), el desafío progresa al jugar y no
+vuelve a cobrarse una vez hecho. `localStorage` corrupto (fecha inválida, racha
+999, id de desafío inventado) **no rompe nada**. 0 errores de consola, 0
+peticiones fallidas, 0 violaciones de CSP.
 
 ---
 
