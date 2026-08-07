@@ -23,6 +23,7 @@ import {
   missPenalty,
 } from '../systems/scoringSystem.js'
 import { Sounds } from '../systems/audioSystem.js'
+import { comboMilestone, familyForColor } from '../data/hitEffects.js'
 import { useTimer } from './useTimer.js'
 import { pick } from '../utils/random.js'
 
@@ -214,7 +215,13 @@ export function useGameLoop({ level, onFinish, startPaused = false }) {
 
   // --- Interacción: el jugador pulsa una pelota ---
   const onBallTap = useCallback(
-    (cellId) => {
+    /**
+     * `at` es la posición EN PANTALLA del toque, que aporta Ball3D. Viaja hasta
+     * `lastEvent` para que el texto flotante salga sobre la pelota tocada sin
+     * proyectar coordenadas 3D por su cuenta. Es opcional: si falta, el efecto se
+     * limita a no dibujar el texto.
+     */
+    (cellId, at) => {
       const s = sim.current
       if (s.finished || !live) return
       const t = now()
@@ -232,14 +239,23 @@ export function useGameLoop({ level, onFinish, startPaused = false }) {
         )
         s.score += points
         s.hits += 1
-        if (fast || s.combo >= 3) Sounds.combo()
-        else Sounds.hit()
+        // Sonido POR FAMILIA de color (v0.6.3): cada tramo del juego suena distinto.
+        // `hit()`/`combo()` siguen existiendo intactos como respaldo.
+        const family = familyForColor(level.activeColor).id
+        Sounds.hitFamily(family, fast)
+        // Al cruzar un escalón de combo se encadena un arpegio POR ENCIMA del
+        // acierto (arranca con retardo, así que no se pisan).
+        const milestone = comboMilestone(s.combo)
+        if (milestone) Sounds.comboUp(milestone.tier)
         setLastEvent({
           type: 'hit',
           points,
           combo: s.combo,
           fast,
           multiplier,
+          family,
+          at,
+          milestone: milestone ? milestone.label : null,
           key: nextEventKey(),
         })
         sync()
@@ -250,7 +266,7 @@ export function useGameLoop({ level, onFinish, startPaused = false }) {
         s.combo = 0
         s.misses += 1
         Sounds.miss()
-        setLastEvent({ type: 'wrong', key: nextEventKey() })
+        setLastEvent({ type: 'wrong', at, key: nextEventKey() })
         sync()
       }
     },

@@ -120,6 +120,62 @@ export const Sounds = {
     tone({ freq: 520, dur: 0.06, type: 'square', gain: 0.12 })
   },
   /**
+   * ACIERTO POR FAMILIA DE COLOR (v0.6.3). Cada tramo del juego suena distinto sin
+   * añadir ni un archivo de audio: cambian la forma de onda, el intervalo y la
+   * caída. Se llama en lugar de `hit()` cuando se conoce la familia; `hit()` sigue
+   * existiendo intacto como respaldo.
+   *
+   * Todas respetan `enabled`, igual que el resto: si el jugador silenció el juego,
+   * ninguna suena.
+   */
+  hitFamily(family, fast) {
+    if (!enabled) return
+    const g = fast ? 0.24 : 0.2
+    switch (family) {
+      // Verde: tono limpio que sube. Es el sonido "de siempre", un poco más vivo.
+      case 'leaf':
+        tone({ freq: 660, slideTo: 990, dur: 0.12, type: 'triangle', gain: g })
+        break
+      // Cian: cristalino. Dos senos agudos muy juntos dan ese "ting" de vidrio.
+      case 'crystal':
+        tone({ freq: 1245, dur: 0.09, type: 'sine', gain: g })
+        tone({ freq: 1660, dur: 0.13, type: 'sine', gain: g * 0.75, delay: 0.045 })
+        break
+      // Dorado: moneda. Dos notas en quinta, la segunda más corta y brillante.
+      case 'gold':
+        tone({ freq: 988, dur: 0.08, type: 'square', gain: g * 0.7 })
+        tone({ freq: 1480, dur: 0.14, type: 'triangle', gain: g, delay: 0.05 })
+        break
+      // Naranja: cálido y corto. Diente de sierra grave que cae: una chispa.
+      case 'ember':
+        tone({ freq: 520, slideTo: 300, dur: 0.11, type: 'sawtooth', gain: g * 0.8 })
+        tone({ freq: 780, dur: 0.07, type: 'triangle', gain: g * 0.6, delay: 0.02 })
+        break
+      // Rosa/morado: mágico. Tercera ascendente con una cola que sigue subiendo.
+      case 'magic':
+        tone({ freq: 740, dur: 0.1, type: 'sine', gain: g * 0.8 })
+        tone({ freq: 932, dur: 0.1, type: 'sine', gain: g * 0.7, delay: 0.06 })
+        tone({ freq: 1245, slideTo: 1660, dur: 0.16, type: 'sine', gain: g * 0.5, delay: 0.12 })
+        break
+      default:
+        tone({ freq: 660, slideTo: 990, dur: 0.12, type: 'triangle', gain: g })
+    }
+  },
+  /**
+   * Escalón de combo alcanzado: arpegio corto que sube con el escalón. Va POR
+   * ENCIMA del sonido del acierto (arranca con retardo) para que se oigan los dos
+   * sin pisarse.
+   */
+  comboUp(tier) {
+    if (!enabled) return
+    const t = Math.max(1, Math.min(4, Math.floor(tier) || 1))
+    const base = [523, 659, 784, 1047][t - 1]
+    const notas = [base, base * 1.26, base * 1.5].slice(0, 1 + t)
+    notas.forEach((f, i) =>
+      tone({ freq: f, dur: 0.1, type: 'triangle', gain: 0.18, delay: 0.1 + i * 0.07 }),
+    )
+  },
+  /**
    * Huesos ganados: tintineo de "monedas" (v0.6.1). Sigue siendo síntesis pura —
    * el juego no descarga ni un archivo de audio. Va DESPUÉS del fanfarrón de
    * victoria (delays altos) para que no se pisen.
